@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "roslyn": {
+      "type": "stdio",
+      "command": "dotnet",
+      "args": ["/Users/orldev/Projects/Программирование/mcp/Snail.MCP.Roslyn/src/bin/Debug/net10.0/Snail.MCP.Roslyn.dll"]
+    }
+  }
+}

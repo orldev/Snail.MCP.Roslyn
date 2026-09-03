@@ -1,0 +1,9 @@
+Snail.MCP.Roslyn
+
+Portions of this software are adapted from roslyn-codelens-mcp
+(https://github.com/MarcelRoozekrans/roslyn-codelens-mcp),
+MIT License, Copyright (c) 2026 Marcel Roozekrans:
+
+- the hint-name mapping between Razor markup and generator output (Adapters/Workspaces/MarkupMap.cs)
+- the reference-kind vocabulary (Adapters/Workspaces/ReferenceKinds.cs)
+- the analyzer allowlist policy shape (Adapters/Workspaces/AnalyzerGuard.cs)
