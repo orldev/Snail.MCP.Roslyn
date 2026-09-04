@@ -1,5 +1,4 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
@@ -8,22 +7,35 @@ internal sealed class NamespaceGraph
 {
     private readonly Dictionary<string, HashSet<string>> edges = new(StringComparer.Ordinal);
 
-    public static async Task<NamespaceGraph> BuildAsync(Solution solution, CancellationToken cancellationToken)
+    /// <summary>The edge a name used inside a type draws, or null when it draws none: a namespace does not depend
+    /// on itself, on a namespace nesting it or nested in it, or on a type outside the source.</summary>
+    public static NamespaceEdge? Edge(string from, ISymbol declared, ISymbol used)
     {
-        var graph = new NamespaceGraph();
+        var target = used.Kind == SymbolKind.NamedType ? used : used.ContainingType;
 
-        foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
+        if (target is null || !target.Locations.Any(location => location.IsInSource))
+            return null;
+
+        if (target.ContainingNamespace is not { } space || SymbolEqualityComparer.Default.Equals(target, declared))
+            return null;
+
+        var to = space.ToDisplayString();
+
+        if (string.Equals(from, to, StringComparison.Ordinal) || Nested(from, to) || Nested(to, from))
+            return null;
+
+        return new NamespaceEdge(from, to);
+    }
+
+    public void Add(DocumentFacts facts)
+    {
+        foreach (var (from, to) in facts.Edges)
         {
-            foreach (var document in project.Documents)
-            {
-                if (document.FilePath is not { } file || SourcePaths.IsUnderOutput(file))
-                    continue;
+            if (!edges.TryGetValue(from, out var set))
+                set = edges[from] = new HashSet<string>(StringComparer.Ordinal);
 
-                await graph.WalkAsync(document, cancellationToken);
-            }
+            set.Add(to);
         }
-
-        return graph;
     }
 
     /// <summary>Every cycle, rendered as the namespaces that take part in it.</summary>
@@ -84,52 +96,6 @@ internal sealed class NamespaceGraph
         }
 
         return [.. cycles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
-    }
-
-    private async Task WalkAsync(Document document, CancellationToken cancellationToken)
-    {
-        var model = await document.GetSemanticModelAsync(cancellationToken);
-        var root = await document.GetSyntaxRootAsync(cancellationToken);
-
-        if (model is null || root is null)
-            return;
-
-        foreach (var declaration in root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>())
-        {
-            if (model.GetDeclaredSymbol(declaration, cancellationToken) is not { ContainingNamespace: { } owner } declared)
-                continue;
-
-            var from = owner.ToDisplayString();
-
-            foreach (var name in declaration.DescendantNodes().OfType<SimpleNameSyntax>())
-            {
-                if (model.GetSymbolInfo(name, cancellationToken).Symbol is not { } used)
-                    continue;
-
-                Connect(from, used, declared);
-            }
-        }
-    }
-
-    private void Connect(string from, ISymbol used, ISymbol declared)
-    {
-        var target = used.Kind == SymbolKind.NamedType ? used : used.ContainingType;
-
-        if (target is null || !target.Locations.Any(location => location.IsInSource))
-            return;
-
-        if (target.ContainingNamespace is not { } space || SymbolEqualityComparer.Default.Equals(target, declared))
-            return;
-
-        var to = space.ToDisplayString();
-
-        if (string.Equals(from, to, StringComparison.Ordinal) || Nested(from, to) || Nested(to, from))
-            return;
-
-        if (!edges.TryGetValue(from, out var set))
-            set = edges[from] = new HashSet<string>(StringComparer.Ordinal);
-
-        set.Add(to);
     }
 
     private static bool Nested(string outer, string inner) =>

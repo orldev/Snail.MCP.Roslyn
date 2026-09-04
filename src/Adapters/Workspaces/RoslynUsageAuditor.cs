@@ -45,7 +45,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var usage = await SolutionInsights.UsageAsync(solution, cancellationToken);
+        var usage = (await SolutionInsights.FactsAsync(solution, cancellationToken)).Usage;
         var markup = await MarkupMap.BuildAsync(solution, cancellationToken);
         var filter = string.IsNullOrWhiteSpace(scope) ? null : paths.ToProcess(scope);
 
@@ -70,7 +70,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
         if (tests.Count == 0)
             return new AuditPage([], 0, false, [NoTestsNote]);
 
-        var usage = await SolutionInsights.UsageAsync(solution, cancellationToken);
+        var usage = (await SolutionInsights.FactsAsync(solution, cancellationToken)).Usage;
         var markup = await MarkupMap.BuildAsync(solution, cancellationToken);
         var filter = string.IsNullOrWhiteSpace(scope) ? null : paths.ToProcess(scope);
 

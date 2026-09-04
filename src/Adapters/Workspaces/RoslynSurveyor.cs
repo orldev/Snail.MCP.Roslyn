@@ -67,7 +67,7 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
             issues.AddRange(Top(diagnostics, cap));
         }
 
-        var usage = await SolutionInsights.UsageAsync(solution, cancellationToken);
+        var facts = await SolutionInsights.FactsAsync(solution, cancellationToken);
         var architecture = await FindingsAsync(solution, cap, cancellationToken);
 
         return new SolutionOverview(
@@ -79,7 +79,7 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
             warnings,
             [.. graph.OrderBy(project => project.Name, StringComparer.Ordinal)],
             ProjectCycles(solution),
-            Hotspots(usage, cap),
+            Hotspots(facts.Usage, cap),
             [.. issues.Take(cap)],
             [.. architecture.Take(cap)],
             [ClaimNote, HotspotNote]);
@@ -163,17 +163,17 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
         int cap,
         CancellationToken cancellationToken)
     {
+        var facts = await SolutionInsights.FactsAsync(solution, cancellationToken);
+
         List<ArchitectureFinding> findings = [];
 
         foreach (var project in solution.Projects.Where(IsCSharp))
         {
             foreach (var document in project.Documents)
-                findings.AddRange(await MismatchAsync(project, document, cancellationToken));
+                findings.AddRange(Mismatch(project, document, facts));
         }
 
-        var graph = await SolutionInsights.GraphAsync(solution, cancellationToken);
-
-        findings.AddRange(graph.Cycles()
+        findings.AddRange(facts.Graph.Cycles()
             .Take(cap)
             .Select(cycle => new ArchitectureFinding(CycleRule, $"Namespaces depend on each other in a cycle: {cycle}.", null, 0)));
 
@@ -185,30 +185,18 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
         return findings;
     }
 
-    private async Task<IReadOnlyList<ArchitectureFinding>> MismatchAsync(
-        Project project,
-        Document document,
-        CancellationToken cancellationToken)
+    private IReadOnlyList<ArchitectureFinding> Mismatch(Project project, Document document, SolutionFacts facts)
     {
         if (document.FilePath is not { } file || SourcePaths.IsUnderOutput(file))
-            return [];
-
-        var root = await document.GetSyntaxRootAsync(cancellationToken);
-
-        if (root is null)
             return [];
 
         var expected = Expected(project, document);
         List<ArchitectureFinding> findings = [];
 
-        foreach (var declaration in root.DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>())
+        foreach (var (declared, line) in facts.NamespacesIn(document.Id))
         {
-            var declared = declaration.Name.ToString();
-
             if (string.Equals(declared, expected, StringComparison.Ordinal))
                 continue;
-
-            var line = declaration.SyntaxTree.GetLineSpan(declaration.Name.Span).StartLinePosition.Line + 1;
 
             findings.Add(new ArchitectureFinding(
                 FolderRule,

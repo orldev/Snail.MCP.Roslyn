@@ -32,6 +32,41 @@ public sealed class OverviewTests(AnalysisFixture fixture)
         Assert.True(mismatches.Count == 0, string.Join("; ", mismatches.Select(finding => finding.Message)));
     }
 
+    /// <summary>The rule above passes on a clean repository even if the check stopped looking, so the detection
+    /// itself needs a file that breaks it.</summary>
+    [Fact]
+    public async Task CheckAsync_NamespaceNotMatchingItsFolder_ReportsItAtItsLine()
+    {
+        var file = Path.Combine(RepositoryPaths.Source, "Domain", "MisplacedByTheTest.cs");
+
+        await File.WriteAllTextAsync(
+            file,
+            """
+            namespace Snail.MCP.Roslyn.NotTheFolder;
+
+            internal sealed record MisplacedByTheTest(int Value);
+            """,
+            CancellationToken.None);
+
+        try
+        {
+            var report = await fixture.Surveyor.CheckAsync(fixture.SolutionId, 100, CancellationToken.None);
+
+            var finding = Assert.Single(
+                report.Findings,
+                candidate => candidate.Rule == "folder-namespace"
+                             && candidate.File?.EndsWith("MisplacedByTheTest.cs", StringComparison.Ordinal) == true);
+
+            Assert.Equal(1, finding.Line);
+            Assert.Contains("Snail.MCP.Roslyn.NotTheFolder", finding.Message);
+            Assert.Contains("Snail.MCP.Roslyn.Domain", finding.Message);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
     [Fact]
     public async Task HealthAsync_ReadyWorkspace_ReportsProjectCountAndMemory()
     {

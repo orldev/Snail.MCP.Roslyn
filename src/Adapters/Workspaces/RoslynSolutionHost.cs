@@ -24,7 +24,7 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
         "Some .csproj files under this directory are not part of the loaded solution and were not analysed. "
         + "Answers cover the solution only: absence of a result there does not mean absence in the directory.";
 
-    public async Task<WorkspaceReport> LoadAsync(string path, CancellationToken cancellationToken)
+    public async Task<WorkspaceReport> LoadAsync(string path, CancellationToken cancellationToken, bool countDiagnostics = false)
     {
         var target = paths.ToProcess(path);
         var entry = Resolve(target);
@@ -53,7 +53,7 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
 
         var projects = Inventory(solution);
         var unloaded = Unloaded(entry, solution);
-        var (errors, warnings, compiled) = await CountAsync(solution, cancellationToken);
+        var (errors, warnings, compiled) = await CountAsync(solution, countDiagnostics, cancellationToken);
         var unrestored = ProjectRestore.Missing(solution);
         var readiness = Decide(projects, compiled, unrestored.Count == 0);
 
@@ -127,8 +127,13 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
             .OrderBy(project => project.Name, StringComparer.Ordinal)
     ];
 
-    private static async Task<(int Errors, int Warnings, bool Compiled)> CountAsync(
+    /// <summary>Whether every project compiled, and the diagnostic counts only when they were asked for.</summary>
+    /// <remarks>Counting means binding every method body of every project, which is the cost of a build, for
+    /// two numbers that are stale as soon as the caller edits anything. get_diagnostics answers the same
+    /// question against the files as they stand, so loading no longer pays for it.</remarks>
+    private static async Task<(int? Errors, int? Warnings, bool Compiled)> CountAsync(
         Solution solution,
+        bool counting,
         CancellationToken cancellationToken)
     {
         var errors = 0;
@@ -146,6 +151,9 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
                 continue;
             }
 
+            if (!counting)
+                continue;
+
             foreach (var diagnostic in compilation.GetDiagnostics(cancellationToken))
             {
                 if (diagnostic.Severity == DiagnosticSeverity.Error)
@@ -156,7 +164,7 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
             }
         }
 
-        return (errors, warnings, compiled);
+        return counting ? (errors, warnings, compiled) : (null, null, compiled);
     }
 
     private static WorkspaceReadiness Decide(IReadOnlyList<LoadedProject> projects, bool compiled, bool restored)
@@ -222,5 +230,5 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
     }
 
     private WorkspaceReport Unopened(string target, string note) =>
-        new(string.Empty, WorkspaceReadiness.Failed, paths.ToCaller(target), [], [], 0, 0, 0, [note]);
+        new(string.Empty, WorkspaceReadiness.Failed, paths.ToCaller(target), [], [], null, null, 0, [note]);
 }

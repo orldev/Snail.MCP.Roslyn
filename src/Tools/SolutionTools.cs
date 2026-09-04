@@ -12,8 +12,10 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
     public Task<WorkspaceReport> LoadSolution(
         [Description("Absolute path to a .sln, .slnx or .csproj file, or a directory containing one.")]
         string path,
-        CancellationToken cancellationToken) =>
-        host.LoadAsync(path, cancellationToken);
+        CancellationToken cancellationToken,
+        [Description("Also count compiler errors and warnings. Off by default: it costs a full build and the numbers go stale on the next edit.")]
+        bool countDiagnostics = false) =>
+        host.LoadAsync(path, cancellationToken, countDiagnostics);
 
     [McpServerTool(Name = "get_diagnostics")]
     [Description(ToolDescriptions.GetDiagnostics)]

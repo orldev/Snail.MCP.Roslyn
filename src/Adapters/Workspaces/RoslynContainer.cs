@@ -16,6 +16,35 @@ internal sealed class RoslynContainer(IPathMap paths, SolutionCache cache) : ICo
 
     private static readonly string[] Lifetimes = ["Singleton", "Scoped", "Transient"];
 
+    /// <summary>The registration a call states, or null when the call registers nothing: the rule lives here, the
+    /// walk that applies it to every file belongs to whoever is already reading them.</summary>
+    public static RegistrationFact? Registered(
+        SemanticModel model,
+        InvocationExpressionSyntax invocation,
+        CancellationToken cancellationToken)
+    {
+        if (model.GetSymbolInfo(invocation, cancellationToken).Symbol is not IMethodSymbol method)
+            return null;
+
+        if (Lifetime(method) is not { } lifetime)
+            return null;
+
+        var (contract, implementation) = Types(method, invocation, model, cancellationToken);
+
+        if (contract is null)
+            return null;
+
+        var line = model.SyntaxTree.GetText(cancellationToken).Lines.GetLineFromPosition(invocation.SpanStart);
+
+        return new RegistrationFact(
+            contract,
+            implementation,
+            lifetime,
+            method.Name,
+            line.LineNumber + 1,
+            line.ToString().Trim());
+    }
+
     public async Task<RegistrationReport> ReadAsync(
         string solutionId,
         string? service,
@@ -23,78 +52,37 @@ internal sealed class RoslynContainer(IPathMap paths, SolutionCache cache) : ICo
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
+        var facts = await SolutionInsights.FactsAsync(solution, cancellationToken);
         var cap = Math.Clamp(limit, 1, 300);
 
         List<Registration> found = [];
         HashSet<string> registered = [];
         var total = 0;
 
-        foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
+        foreach (var (file, registration) in facts.Registrations)
         {
-            foreach (var document in project.Documents)
-            {
-                if (document.FilePath is not { } file || SourcePaths.IsUnderOutput(file))
-                    continue;
+            registered.Add(registration.Contract);
+            total++;
 
-                await CollectAsync(document, file, service, cap, found, registered, cancellationToken, count => total += count);
-            }
-        }
-
-        var unregistered = await UnregisteredAsync(solution, registered, cancellationToken);
-
-        return new RegistrationReport(found, unregistered, total, total > found.Count, Notes(found, unregistered.Count));
-    }
-
-    private async Task CollectAsync(
-        Document document,
-        string file,
-        string? service,
-        int cap,
-        List<Registration> found,
-        HashSet<string> registered,
-        CancellationToken cancellationToken,
-        Action<int> counted)
-    {
-        var model = await document.GetSemanticModelAsync(cancellationToken);
-        var root = await document.GetSyntaxRootAsync(cancellationToken);
-        var text = await document.GetTextAsync(cancellationToken);
-
-        if (model is null || root is null)
-            return;
-
-        foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
-        {
-            if (model.GetSymbolInfo(invocation, cancellationToken).Symbol is not IMethodSymbol method)
-                continue;
-
-            if (Lifetime(method) is not { } lifetime)
-                continue;
-
-            var (contract, implementation) = Types(method, invocation, model, cancellationToken);
-
-            if (contract is null)
-                continue;
-
-            registered.Add(contract);
-            counted(1);
-
-            if (service is not null && !contract.Contains(service, StringComparison.OrdinalIgnoreCase))
+            if (service is not null && !registration.Contract.Contains(service, StringComparison.OrdinalIgnoreCase))
                 continue;
 
             if (found.Count >= cap)
                 continue;
 
-            var line = text.Lines.GetLineFromPosition(invocation.SpanStart);
-
             found.Add(new Registration(
-                contract,
-                implementation,
-                lifetime,
-                method.Name,
+                registration.Contract,
+                registration.Implementation,
+                registration.Lifetime,
+                registration.Method,
                 paths.ToCaller(file),
-                line.LineNumber + 1,
-                line.ToString().Trim()));
+                registration.Line,
+                registration.Text));
         }
+
+        var unregistered = await UnregisteredAsync(solution, registered, cancellationToken);
+
+        return new RegistrationReport(found, unregistered, total, total > found.Count, Notes(found, unregistered.Count));
     }
 
     private static string? Lifetime(IMethodSymbol method)

@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -37,6 +39,8 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
     private const string RenderCostNote =
         "Issues with an SNR id are render-cost patterns matched on the markup text, not compiler diagnostics: "
         + "each names a documented Blazor cost, but whether it sits on a hot path is your judgment.";
+
+    private static readonly ConditionalWeakTable<Compilation, ConcurrentDictionary<string, INamedTypeSymbol?>> Components = [];
 
     private static readonly Regex ComponentTag = new(
         @"<(?<name>[A-Z][A-Za-z0-9_]*(?:\.[A-Z][A-Za-z0-9_]*)*)[\s/>]",
@@ -107,7 +111,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
         var (rendered, start, end) = Slice(text.Lines, startLine, maxLines);
         var compilation = await markup.Project.GetCompilationAsync(cancellationToken);
         var generated = await MarkupMap.FindGeneratedAsync(markup.Project, markup, cancellationToken);
-        var usage = await SolutionInsights.UsageAsync(solution, cancellationToken);
+        var usage = (await SolutionInsights.FactsAsync(solution, cancellationToken)).Usage;
 
         List<FileSymbol> outline = [];
 
@@ -233,7 +237,15 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
             line,
             usage.CountFor(symbol));
 
-    private static INamedTypeSymbol? ResolveComponent(Compilation compilation, string name, INamedTypeSymbol contract)
+    /// <summary>The component type a tag names, remembered per compilation.</summary>
+    /// <remarks>A miss walks every namespace of every referenced assembly that holds the name, so a page with
+    /// thirty tags did thirty of those walks, and the next page did them again. A compilation is immutable, so
+    /// the answers keyed on it need no invalidation.</remarks>
+    private static INamedTypeSymbol? ResolveComponent(Compilation compilation, string name, INamedTypeSymbol contract) =>
+        Components.GetValue(compilation, _ => new ConcurrentDictionary<string, INamedTypeSymbol?>(StringComparer.Ordinal))
+            .GetOrAdd(name, wanted => Search(compilation, wanted, contract));
+
+    private static INamedTypeSymbol? Search(Compilation compilation, string name, INamedTypeSymbol contract)
     {
         foreach (var candidate in compilation.GetSymbolsWithName(name, SymbolFilter.Type).OfType<INamedTypeSymbol>())
         {
@@ -335,7 +347,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
         if (model is null || root is null)
             return [];
 
-        var usage = await SolutionInsights.UsageAsync(solution, cancellationToken);
+        var usage = (await SolutionInsights.FactsAsync(solution, cancellationToken)).Usage;
         List<FileSymbol> outline = [];
 
         foreach (var declaration in root.DescendantNodes().Where(IsDeclaration))

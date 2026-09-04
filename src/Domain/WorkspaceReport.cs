@@ -6,7 +6,7 @@ public sealed record WorkspaceReport(
     string Path,
     IReadOnlyList<LoadedProject> Projects,
     IReadOnlyList<string> Unloaded,
-    int Errors,
-    int Warnings,
+    int? Errors,
+    int? Warnings,
     long ElapsedMilliseconds,
     IReadOnlyList<string> Notes);
