@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Compiles a file's proposed contents in the context of the solution, before it reaches the disk.</summary>
 internal sealed class RoslynValidator(IPathMap paths, SolutionCache cache) : ICodeValidator
 {
     private const string NewFileNote =

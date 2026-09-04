@@ -3,11 +3,10 @@ using System.Text.Json;
 
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Standard output belongs to the protocol; anything else there breaks every client.</summary>
 public sealed class StdioContractTests
 {
     [Fact]
-    public async Task Standard_output_carries_nothing_but_protocol_messages()
+    public async Task StandardOutput_AfterInitialize_CarriesOnlyJsonRpcMessages()
     {
         using var server = Start();
 
@@ -31,7 +30,7 @@ public sealed class StdioContractTests
     }
 
     [Fact]
-    public async Task The_client_is_told_how_to_work_with_this_server_at_initialize()
+    public async Task Initialize_AnyClient_ReturnsServerInstructions()
     {
         using var server = Start();
 
@@ -55,7 +54,7 @@ public sealed class StdioContractTests
     }
 
     [Fact]
-    public async Task The_whole_catalogue_reaches_a_client_over_the_real_transport()
+    public async Task ToolsList_OverStdioTransport_ReturnsWholeDescribedCatalogue()
     {
         using var server = Start();
 

@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>A script answers the question no fixed tool anticipates, and cannot change the code.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class ScriptTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task A_script_sees_the_loaded_solution()
+    public async Task RunAsync_ScriptReadingSolution_SeesLoadedProjects()
     {
         var result = await fixture.Scripts.RunAsync(
             fixture.SolutionId,
@@ -17,7 +16,7 @@ public sealed class ScriptTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_script_can_aggregate_over_the_whole_solution_in_one_pass()
+    public async Task RunAsync_ScriptAggregatingTypes_AnswersOverWholeSolution()
     {
         var result = await fixture.Scripts.RunAsync(
             fixture.SolutionId,
@@ -29,7 +28,7 @@ public sealed class ScriptTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_script_that_does_not_compile_returns_the_diagnostics_and_the_available_globals()
+    public async Task RunAsync_ScriptThatDoesNotCompile_ReturnsDiagnosticsAndAvailableGlobals()
     {
         var result = await fixture.Scripts.RunAsync(fixture.SolutionId, "NoSuchGlobal.Whatever()", CancellationToken.None);
 

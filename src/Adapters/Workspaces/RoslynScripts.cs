@@ -9,7 +9,6 @@ using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Evaluates a C# script against the loaded solution, for the questions no fixed tool anticipates.</summary>
 internal sealed class RoslynScripts(SolutionCache cache, IOptions<WorkspaceOptions> options) : IScriptRunner
 {
     private const string DisabledNote =

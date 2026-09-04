@@ -6,7 +6,6 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Moves code between namespaces, files and shapes; returns edits and never writes to disk.</summary>
 internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : IStructureRefactorer
 {
     private const string DepthNote =

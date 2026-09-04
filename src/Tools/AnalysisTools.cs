@@ -4,7 +4,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Tools;
 
-/// <summary>Questions asked of the compiler before a change, and the repairs it offers after one.</summary>
 [McpServerToolType]
 public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyzers, ICodeValidator validator)
 {

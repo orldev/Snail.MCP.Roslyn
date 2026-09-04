@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Finds symbols by name and describes the one the caller points at.</summary>
 internal sealed class RoslynSymbols(IPathMap paths, SolutionCache cache) : ISymbolLookup
 {
     private readonly SymbolResolver resolver = new(paths);

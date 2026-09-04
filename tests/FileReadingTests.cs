@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Reading one file with everything the compiler knows about it.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class FileReadingTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task A_source_file_arrives_numbered_whole_and_clean()
+    public async Task ReadAsync_SourceFileOfSolution_ReturnsWholeNumberedTextWithoutIssues()
     {
         var file = Path.Combine(RepositoryPaths.Source, "Adapters", "Workspaces", "SymbolResolver.cs");
 
@@ -20,7 +19,7 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task The_outline_carries_identifiers_that_feed_find_references_directly()
+    public async Task ReadAsync_SourceFile_ReturnsOutlineIdsThatFindReferencesAccepts()
     {
         var file = Path.Combine(RepositoryPaths.Source, "Adapters", "Workspaces", "SymbolFacts.cs");
 
@@ -39,7 +38,7 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_window_returns_exactly_the_lines_asked_for()
+    public async Task ReadAsync_LineWindow_ReturnsExactlyTheRequestedLines()
     {
         var file = Path.Combine(RepositoryPaths.Source, "Adapters", "Workspaces", "SymbolResolver.cs");
 
@@ -53,7 +52,7 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_file_outside_the_solution_returns_text_alone_and_says_so()
+    public async Task ReadAsync_FileOutsideSolution_ReturnsTextOnlyWithNote()
     {
         var file = Path.Combine(RepositoryPaths.Source, "README.md");
 
@@ -66,7 +65,7 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_missing_file_is_an_error_not_an_empty_answer()
+    public async Task ReadAsync_MissingFile_ThrowsFileNotFound()
     {
         var file = Path.Combine(RepositoryPaths.Source, "DoesNotExist.cs");
 

@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Container registrations are read from source, including the ones a rename cannot see.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class RegistrationTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task Every_port_registered_by_this_server_is_reported_with_its_implementation()
+    public async Task ReadAsync_RegisteredPort_ReportsLifetimeImplementationAndFile()
     {
         var report = await fixture.Container.ReadAsync(fixture.SolutionId, null, 200, CancellationToken.None);
 
@@ -17,7 +16,7 @@ public sealed class RegistrationTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task The_answer_warns_that_registrations_written_as_text_survive_a_rename()
+    public async Task ReadAsync_AnyResult_WarnsThatByNameRegistrationsSurviveRename()
     {
         var report = await fixture.Container.ReadAsync(fixture.SolutionId, null, 200, CancellationToken.None);
 
@@ -25,7 +24,7 @@ public sealed class RegistrationTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Narrowing_by_service_name_keeps_only_the_matching_registrations()
+    public async Task ReadAsync_ServiceFilter_KeepsOnlyMatchingRegistrations()
     {
         var report = await fixture.Container.ReadAsync(fixture.SolutionId, "IScriptRunner", 200, CancellationToken.None);
 

@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Analyzers run over the solution and state what they cost and which ones ran.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class AnalyzerTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task Running_the_analyzers_names_the_analyzers_that_ran()
+    public async Task RunAsync_LoadedSolution_NamesAnalyzersThatRanAndStatesCost()
     {
         var page = await fixture.Analyzers.RunAsync(
             fixture.SolutionId,
@@ -20,7 +19,7 @@ public sealed class AnalyzerTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Every_finding_carries_the_category_that_explains_why_it_matters()
+    public async Task RunAsync_AnyFinding_CarriesCategoryAndFile()
     {
         var page = await fixture.Analyzers.RunAsync(
             fixture.SolutionId,
@@ -35,7 +34,7 @@ public sealed class AnalyzerTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_line_with_no_diagnostic_answers_with_a_note_rather_than_an_empty_list()
+    public async Task FixesAsync_LineWithoutDiagnostic_ReturnsNoFixesWithNote()
     {
         var page = await fixture.Analyzers.FixesAsync(
             fixture.SolutionId,

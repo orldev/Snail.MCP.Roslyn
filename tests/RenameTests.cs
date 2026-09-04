@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Renaming returns edits, states what it will not touch, and never writes.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class RenameTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task Renaming_a_port_rewrites_its_implementation_and_its_registration()
+    public async Task PlanAsync_Port_EditsImplementationAndRegistration()
     {
         var plan = await Plan(nameof(IRenamePlanner), "IRenameDesigner");
 
@@ -15,7 +14,7 @@ public sealed class RenameTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Renaming_a_type_also_renames_the_file_that_declares_it()
+    public async Task PlanAsync_TypeNamedAfterItsFile_RenamesThatFile()
     {
         var plan = await Plan(RoslynRenamerName, "RenameDesigner");
 
@@ -25,7 +24,7 @@ public sealed class RenameTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_bare_name_matching_several_symbols_returns_candidates_and_no_edits()
+    public async Task PlanAsync_BareNameMatchingSeveralSymbols_ReturnsCandidatesAndNoEdits()
     {
         var plan = await fixture.Renames.PlanAsync(
             fixture.SolutionId,
@@ -39,7 +38,7 @@ public sealed class RenameTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Planning_leaves_the_files_on_disk_untouched()
+    public async Task PlanAsync_AnyRename_LeavesDiskUntouched()
     {
         var file = Path.Combine(RepositoryPaths.Source, "Adapters", "Workspaces", "RoslynRenamer.cs");
         var before = await File.ReadAllTextAsync(file, CancellationToken.None);
@@ -66,7 +65,7 @@ public sealed class RenameTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Edits_keep_the_original_indentation_so_applying_them_preserves_layout()
+    public async Task PlanAsync_IndentedLine_KeepsIndentationInTheEdit()
     {
         var plan = await Plan(nameof(IRenamePlanner), "IRenameDesigner");
 

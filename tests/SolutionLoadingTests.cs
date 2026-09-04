@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Loading reports the truth about what was analysed and what was not.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class SolutionLoadingTests(AnalysisFixture fixture)
 {
     [Fact]
-    public void Loading_this_repository_yields_a_semantic_workspace()
+    public void LoadAsync_RestoredRepository_ReportsReadyWithSemantics()
     {
         Assert.Equal(WorkspaceReadiness.Ready, fixture.Report.Readiness);
         Assert.NotEmpty(fixture.Report.Projects);
@@ -13,7 +12,7 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public void A_project_without_metadata_references_is_never_reported_as_ready()
+    public void LoadAsync_ProjectWithoutMetadataReferences_IsNeverReportedReady()
     {
         Assert.All(
             fixture.Report.Projects.Where(project => !project.HasSemantics),
@@ -21,7 +20,7 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_path_holding_no_project_fails_loudly_rather_than_returning_nothing()
+    public async Task LoadAsync_PathWithoutProject_ReportsFailedWithNotes()
     {
         var report = await fixture.Host.LoadAsync(Path.GetTempPath(), CancellationToken.None);
 
@@ -30,7 +29,7 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Unloading_releases_the_solution_and_says_that_further_questions_need_a_reload()
+    public async Task Unload_LoadedSolution_ReleasesItAndRejectsLaterQuestions()
     {
         var folder = Directory.CreateTempSubdirectory("roslyn-unload").FullName;
 

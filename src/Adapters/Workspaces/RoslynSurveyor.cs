@@ -6,7 +6,6 @@ using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Answers the questions whose truth lives at the level of the whole solution.</summary>
 internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptions<WorkspaceOptions> options)
     : ISolutionSurveyor
 {

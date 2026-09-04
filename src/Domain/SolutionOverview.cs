@@ -1,6 +1,5 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-/// <summary>The whole solution in one budgeted answer: graph, size, hotspots and what is already wrong.</summary>
 public sealed record SolutionOverview(
     string Id,
     int Projects,

@@ -4,7 +4,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Tools;
 
-/// <summary>What the solution wires up, what it never uses, and what its tests never reach.</summary>
 [McpServerToolType]
 public sealed class ArchitectureTools(IContainerReader container, ICodeUsageAuditor auditor)
 {

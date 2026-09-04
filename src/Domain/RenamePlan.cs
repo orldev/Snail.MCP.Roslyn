@@ -1,6 +1,5 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-/// <summary>A rename worked out by the compiler and handed back for the caller to apply.</summary>
 public sealed record RenamePlan(
     string SymbolId,
     string OldName,

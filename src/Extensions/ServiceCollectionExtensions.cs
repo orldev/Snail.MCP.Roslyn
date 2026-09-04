@@ -8,7 +8,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Extensions;
 
-/// <summary>Feature registrations the composition root nests under itself.</summary>
 public static class ServiceCollectionExtensions
 {
     extension(IServiceCollection services)

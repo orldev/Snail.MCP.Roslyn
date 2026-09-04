@@ -1,6 +1,5 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>A workspace whose packages were never restored must say so, not report itself ready.</summary>
 public sealed class RestoreTests : IDisposable
 {
     private const string Project =
@@ -32,7 +31,7 @@ public sealed class RestoreTests : IDisposable
     private readonly string folder = Directory.CreateTempSubdirectory("roslyn-restore").FullName;
 
     [Fact]
-    public async Task A_project_without_a_restore_is_reported_degraded_and_named()
+    public async Task LoadAsync_ProjectWithoutRestore_ReportsDegradedAndExplains()
     {
         await File.WriteAllTextAsync(Path.Combine(folder, "Unrestored.csproj"), Project);
         await File.WriteAllTextAsync(Path.Combine(folder, "Widget.cs"), Source);

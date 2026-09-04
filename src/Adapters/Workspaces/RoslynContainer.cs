@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Reads container registrations, including the ones a rename cannot see.</summary>
 internal sealed class RoslynContainer(IPathMap paths, SolutionCache cache) : IContainerReader
 {
     private const string ByNameNote =

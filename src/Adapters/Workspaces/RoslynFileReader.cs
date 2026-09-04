@@ -5,7 +5,6 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Reads one file the way the compiler sees it: numbered text, its diagnostics, and the declarations it holds.</summary>
 internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDiagnosticReader diagnostics) : IFileReader
 {
     private const int IssueCap = 20;

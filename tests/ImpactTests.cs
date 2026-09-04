@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Impact is measured before a change, grouped so the blast radius is visible.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class ImpactTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task A_port_used_across_the_repository_reports_more_than_one_project()
+    public async Task AnalyzeAsync_SymbolUsedInSeveralProjects_ReportsCrossProjectImpact()
     {
         var report = await fixture.Impact.AnalyzeAsync(
             fixture.SolutionId,
@@ -19,7 +18,7 @@ public sealed class ImpactTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task An_interface_member_reports_the_implementations_a_shape_change_would_break()
+    public async Task AnalyzeAsync_InterfaceMember_ReportsImplementationsAShapeChangeBreaks()
     {
         var report = await fixture.Impact.AnalyzeAsync(
             fixture.SolutionId,
@@ -31,7 +30,7 @@ public sealed class ImpactTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task An_unknown_name_answers_with_a_note_rather_than_an_empty_report()
+    public async Task AnalyzeAsync_UnknownName_ReturnsZeroReferencesWithNote()
     {
         var report = await fixture.Impact.AnalyzeAsync(
             fixture.SolutionId,

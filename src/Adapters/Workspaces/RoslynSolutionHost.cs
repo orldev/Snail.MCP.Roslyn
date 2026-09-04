@@ -7,7 +7,6 @@ using Microsoft.CodeAnalysis.MSBuild;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Loads a solution through MSBuild and reports what the caller may ask for next.</summary>
 internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, ILogger<RoslynSolutionHost> log)
     : ISolutionHost
 {

@@ -1,13 +1,12 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Proposed contents are compiled before they reach the disk, and the disk stays untouched.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class ValidationTests(AnalysisFixture fixture)
 {
     private static readonly string Candidate = Path.Combine(RepositoryPaths.Source, "Domain", "ValidationProbe.cs");
 
     [Fact]
-    public async Task Contents_that_do_not_compile_are_reported_before_anything_is_written()
+    public async Task ValidateAsync_ContentsThatDoNotCompile_ReportsErrorsAndWritesNothing()
     {
         var result = await fixture.Validator.ValidateAsync(
             fixture.SolutionId,
@@ -21,7 +20,7 @@ public sealed class ValidationTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Contents_that_compile_are_reported_clean()
+    public async Task ValidateAsync_ContentsThatCompile_ReportsCleanAndWritesNothing()
     {
         var result = await fixture.Validator.ValidateAsync(
             fixture.SolutionId,
@@ -34,7 +33,7 @@ public sealed class ValidationTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Breaking_an_existing_file_names_what_the_change_would_break()
+    public async Task ValidateAsync_ChangeBreakingExistingFile_NamesWhatItWouldBreak()
     {
         var existing = Path.Combine(RepositoryPaths.Source, "Domain", "LineEdit.cs");
 

@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Generated output is shown as unreachable for editing, never as ordinary source.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class GeneratedCodeTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task The_answer_says_that_editing_generated_files_changes_nothing()
+    public async Task ReadAsync_ProjectWithGeneratedOutput_NamesGeneratorAndWarnsAgainstEditing()
     {
         var page = await fixture.Generated.ReadAsync(
             fixture.SolutionId,
@@ -20,7 +19,7 @@ public sealed class GeneratedCodeTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task An_unknown_project_answers_with_a_note_rather_than_silence()
+    public async Task ReadAsync_UnknownProject_ReturnsNoFilesWithExplanatoryNote()
     {
         var page = await fixture.Generated.ReadAsync(
             fixture.SolutionId,

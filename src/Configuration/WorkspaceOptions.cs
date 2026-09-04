@@ -1,6 +1,5 @@
 namespace Snail.MCP.Roslyn.Configuration;
 
-/// <summary>Root mapping and output limits, identical in shape for every deployment.</summary>
 public sealed class WorkspaceOptions
 {
     public const string Section = "Workspace";

@@ -1,6 +1,5 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-/// <summary>What would break if a symbol changed, grouped so the blast radius is visible at a glance.</summary>
 public sealed record ImpactReport(
     string SymbolId,
     string Name,

@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Application.Ports;
 
-/// <summary>Works out a rename with the compiler and hands it back as edits; never writes to disk.</summary>
+/// <summary>Works the rename out with the compiler and returns edits; never writes to disk.</summary>
 public interface IRenamePlanner
 {
     Task<RenamePlan> PlanAsync(

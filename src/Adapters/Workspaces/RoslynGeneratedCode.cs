@@ -2,7 +2,6 @@ using Microsoft.CodeAnalysis;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Shows what the generators contributed, so a symbol with no declaration in source can be traced to its origin.</summary>
 internal sealed class RoslynGeneratedCode(IPathMap paths, SolutionCache cache) : IGeneratedCodeReader
 {
     private const string EditNote =

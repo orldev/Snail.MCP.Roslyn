@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Audits report checkable claims, and say what they cannot see.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class AuditTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task Nothing_that_the_tests_exercise_is_reported_as_unused()
+    public async Task UnusedAsync_SymbolReferencedElsewhere_IsNotReported()
     {
         var page = await fixture.Auditor.UnusedAsync(fixture.SolutionId, RepositoryPaths.Source, 300, CancellationToken.None);
 
@@ -14,7 +13,7 @@ public sealed class AuditTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Every_unused_finding_states_the_claim_it_makes_and_the_limits_of_it()
+    public async Task UnusedAsync_AnyFinding_CarriesReasonAndReflectionCaveat()
     {
         var page = await fixture.Auditor.UnusedAsync(fixture.SolutionId, RepositoryPaths.Source, 50, CancellationToken.None);
 
@@ -23,7 +22,7 @@ public sealed class AuditTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Uncovered_surface_is_measured_against_the_test_project_that_exists()
+    public async Task UncoveredAsync_SolutionWithTestProject_ExcludesSymbolsTheTestsReach()
     {
         var page = await fixture.Auditor.UncoveredAsync(fixture.SolutionId, RepositoryPaths.Source, 300, CancellationToken.None);
 
@@ -32,7 +31,7 @@ public sealed class AuditTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_symbol_the_tests_reach_names_the_test_methods_that_reach_it()
+    public async Task TestsForAsync_SymbolUsedInTests_ReturnsLocatedTestMethods()
     {
         var tests = await fixture.Auditor.TestsForAsync(
             fixture.SolutionId,

@@ -2,7 +2,6 @@ using System.Diagnostics;
 
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Reading a .razor file must return the component view, not bare text.</summary>
 public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 {
     private const string Project =
@@ -107,6 +106,23 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
                Count="9" />
         """;
 
+    private const string Rows =
+        """
+        @foreach (var item in items)
+        {
+            <Badge @key="item"
+                   Label="@item"
+                   Count="1"
+                   CountChanged="@(value => Pick(value))" />
+        }
+
+        @code {
+            private readonly string[] items = ["a", "b"];
+
+            private void Pick(int value) => _ = value;
+        }
+        """;
+
     private readonly string folder = Directory.CreateTempSubdirectory("roslyn-razor").FullName;
 
     private readonly AnalysisFixture fixture = new();
@@ -122,6 +138,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         await File.WriteAllTextAsync(Path.Combine(folder, "Board.razor"), Board);
         await File.WriteAllTextAsync(Path.Combine(folder, "Cards.razor"), Cards);
         await File.WriteAllTextAsync(Path.Combine(folder, "Wide.razor"), Wide);
+        await File.WriteAllTextAsync(Path.Combine(folder, "Rows.razor"), Rows);
 
         await RestoreAsync();
 
@@ -130,7 +147,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task Code_declarations_map_back_to_authored_lines_with_use_counts()
+    public async Task ReadAsync_ComponentWithCodeBlock_MapsDeclarationsToAuthoredLinesWithUseCounts()
     {
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
@@ -149,7 +166,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task Component_tags_and_directives_are_read_from_the_markup_itself()
+    public async Task ReadAsync_ComponentMarkup_ReturnsComponentTagsAndDirectives()
     {
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Panel.razor"), 1, 2000, CancellationToken.None);
@@ -164,7 +181,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task A_parameter_identifier_from_the_outline_feeds_find_references_with_authored_lines()
+    public async Task FindAsync_ParameterIdFromOutline_ReturnsAuthoredMarkupPositions()
     {
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
@@ -179,7 +196,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task Unused_component_members_surface_with_authored_locations_and_used_ones_stay_out()
+    public async Task UnusedAsync_ComponentMembers_ReportsOnlyUnusedOnesAtAuthoredLocations()
     {
         var page = await fixture.Auditor.UnusedAsync(solutionId, null, 300, CancellationToken.None);
 
@@ -196,7 +213,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task Search_finds_component_members_and_points_the_component_at_its_markup()
+    public async Task SearchAsync_ComponentAndItsMembers_PointAtTheMarkupFile()
     {
         var members = await fixture.Symbols.SearchAsync(
             solutionId, "Label", SymbolKindFilter.Any, 30, CancellationToken.None);
@@ -215,7 +232,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task A_multiline_tag_is_seen_and_a_commented_tag_is_not()
+    public async Task PlanAsync_MultilineTagAndCommentedTag_EditsOnlyTheRealTag()
     {
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Wide.razor"), 1, 2000, CancellationToken.None);
@@ -234,7 +251,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task Render_cost_patterns_arrive_as_issues_and_a_keyed_loop_stays_clean()
+    public async Task ReadAsync_MarkupWithRenderCosts_ReportsSnrIssuesAtTheirLines()
     {
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Board.razor"), 1, 2000, CancellationToken.None);
@@ -252,7 +269,19 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task Renaming_a_component_rewrites_its_markup_tags_and_renames_its_file()
+    public async Task ReadAsync_LambdaOnComponentInsideKeyedLoop_ReportsSnr002AtTheTag()
+    {
+        var view = await fixture.Reader.ReadAsync(
+            solutionId, Path.Combine(folder, "Rows.razor"), 1, 2000, CancellationToken.None);
+
+        var lambda = Assert.Single(view.Issues.Items, issue => issue.Id == "SNR002");
+
+        Assert.Equal(3, lambda.Line);
+        Assert.DoesNotContain(view.Issues.Items, issue => issue.Id == "SNR001");
+    }
+
+    [Fact]
+    public async Task PlanAsync_Component_RewritesMarkupTagsAndRenamesItsFile()
     {
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
@@ -278,7 +307,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task A_repeated_markup_block_is_named_an_extraction_candidate()
+    public async Task CheckAsync_RepeatedMarkupBlock_IsReportedAsExtractionCandidate()
     {
         var report = await fixture.Surveyor.CheckAsync(solutionId, 50, CancellationToken.None);
 
@@ -292,7 +321,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task Renaming_a_parameter_edits_attribute_assignments_across_consumer_markup()
+    public async Task PlanAsync_ComponentParameter_EditsAttributeAssignmentsInConsumerMarkup()
     {
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
@@ -320,7 +349,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task An_extraction_probe_names_the_leaks_and_the_full_plan_compiles_clean()
+    public async Task ExtractAsync_BlockWithUnresolvedNames_NamesLeaksThenPlansCleanlyOnceMapped()
     {
         var cards = Path.Combine(folder, "Cards.razor");
 
@@ -361,7 +390,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task An_extraction_that_would_cut_an_element_apart_is_refused()
+    public async Task ExtractAsync_RangeCuttingAnElementApart_IsRefusedWithoutEdits()
     {
         var plan = await fixture.Extractor.ExtractAsync(
             solutionId,
@@ -374,7 +403,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task A_block_inside_a_container_extracts_without_a_boundary_refusal()
+    public async Task ExtractAsync_BlockFullyInsideContainer_IsNotRefusedAsBoundaryCut()
     {
         var probe = await fixture.Extractor.ExtractAsync(
             solutionId,
@@ -386,7 +415,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public async Task An_edited_markup_file_is_read_fresh_from_disk()
+    public async Task ReadAsync_MarkupEditedAfterLoading_IsReadFreshFromDisk()
     {
         var badge = Path.Combine(folder, "Badge.razor");
         var edited = Badge.Replace("public int Doubled()", "public int Tripled()", StringComparison.Ordinal);

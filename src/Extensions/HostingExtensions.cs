@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 
 namespace Snail.MCP.Roslyn.Extensions;
 
-/// <summary>Root of the composition: everything the server needs, in one call.</summary>
 public static class HostingExtensions
 {
     extension(HostApplicationBuilder builder)

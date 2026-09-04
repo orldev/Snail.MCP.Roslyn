@@ -4,7 +4,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Tools;
 
-/// <summary>The escape hatch: one script against the warm solution, for questions no fixed tool anticipates.</summary>
 [McpServerToolType]
 public sealed class ScriptTools(IScriptRunner scripts)
 {

@@ -1,6 +1,5 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Answers reflect the files as they are now, including files that appear after loading.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class FreshnessTests(AnalysisFixture fixture)
 {
@@ -15,7 +14,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
         """;
 
     [Fact]
-    public async Task A_file_added_after_loading_is_analysed_rather_than_ignored()
+    public async Task Diagnostics_FileAddedAfterLoading_IsAnalysedThenReleasedOnDeletion()
     {
         var file = Path.Combine(RepositoryPaths.Source, "AppearedAfterLoading.cs");
 
@@ -38,7 +37,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Diagnostics_never_point_at_code_the_caller_cannot_edit()
+    public async Task Diagnostics_GeneratedCodeExcluded_PointAtNoFileUnderObj()
     {
         var page = await fixture.Diagnostics.ReadAsync(
             fixture.SolutionId, null, IssueSeverity.Info, 200, false, CancellationToken.None);
@@ -47,7 +46,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Truncation_is_stated_rather_than_silent()
+    public async Task Diagnostics_LimitBelowTotal_ReportsTruncated()
     {
         var page = await fixture.Diagnostics.ReadAsync(
             fixture.SolutionId, null, IssueSeverity.Info, 1, true, CancellationToken.None);

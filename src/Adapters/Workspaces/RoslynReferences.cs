@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Answers what would break if a symbol were touched, within the loaded solution.</summary>
 internal sealed class RoslynReferences(IPathMap paths, SolutionCache cache) : IReferenceFinder
 {
     private const string ScopeNote =

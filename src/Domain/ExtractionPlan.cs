@@ -1,8 +1,7 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-/// <summary>A plan to lift a markup block into a new component: the new file, the compact page-side
-/// replacement, and the names that do not resolve inside the lifted block — the parameter list waiting
-/// to be declared. While that list is non-empty the plan carries no edits: they could not compile.</summary>
+/// <summary>While <see cref="Unresolved"/> is non-empty the plan carries no edits: they could not compile.
+/// That list is the parameter list of the new component, waiting to be declared.</summary>
 public sealed record ExtractionPlan(
     string Component,
     string? NewFile,

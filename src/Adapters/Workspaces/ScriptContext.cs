@@ -13,7 +13,6 @@ public sealed class ScriptContext(Solution solution)
 
     public string Output => output.ToString();
 
-    /// <summary>Every C# compilation in the solution, already warm.</summary>
     public IReadOnlyList<Compilation> Compilations { get; } =
     [
         .. solution.Projects

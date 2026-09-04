@@ -14,8 +14,9 @@ internal static class RenderCosts
         + "re-renders them all. Put @key on the top-level element or component inside the loop.";
 
     private const string LoopLambdaMessage =
-        "An event handler lambda inside a loop creates a new delegate for every item on every render; "
-        + "passed to a component, it forces that component to re-render each time.";
+        "This element takes a handler lambda inside a loop: a new delegate for every item on every render. "
+        + "Passed to a component as a parameter, it also forces that component to re-render each time. "
+        + "A method group, or a handler that takes the item as its argument, costs nothing per render.";
 
     private const string UnfixedCascadeMessage =
         "CascadingValue without IsFixed subscribes every consumer to change notifications. "
@@ -39,6 +40,7 @@ internal static class RenderCosts
     {
         List<string> lines = [.. text.Lines.Select(line => line.ToString())];
         var code = CodeRegions(lines);
+        var elements = RazorMarkup.Parse(text.ToString(), file);
         List<CodeIssue> found = [];
 
         for (var index = 0; index < lines.Count; index++)
@@ -47,7 +49,7 @@ internal static class RenderCosts
                 continue;
 
             if (Loop.IsMatch(lines[index]))
-                ScanLoop(lines, index, file, found);
+                ScanLoop(lines, index, elements, file, found);
 
             if (Cascade.IsMatch(lines[index]) && !Tag(lines, index).Contains("IsFixed", StringComparison.Ordinal))
                 found.Add(Issue("SNR003", UnfixedCascadeMessage, file, index + 1));
@@ -90,33 +92,71 @@ internal static class RenderCosts
         return code;
     }
 
-    private static void ScanLoop(List<string> lines, int start, string file, List<CodeIssue> found)
+    /// <summary>Judges one loop block. With a parse in hand the elements themselves answer both questions —
+    /// a handler lambda is any attribute value carrying an arrow, whichever line the attribute wraps onto,
+    /// and @key is an attribute rather than a substring — and the line scan stands in when there is none.</summary>
+    private static void ScanLoop(
+        List<string> lines,
+        int start,
+        IReadOnlyList<RazorMarkup.Element>? elements,
+        string file,
+        List<CodeIssue> found)
+    {
+        var end = BlockEnd(lines, start);
+
+        if (elements is null)
+        {
+            ScanLoopText(lines, start, end, file, found);
+
+            return;
+        }
+
+        List<RazorMarkup.Element> inside =
+            [.. elements.Where(element => element.Line > start + 1 && element.Line <= end + 1)];
+
+        foreach (var element in inside.Where(element =>
+                     element.Attributes.Any(attribute => attribute.Text.Contains("=>", StringComparison.Ordinal))))
+            found.Add(Issue("SNR002", LoopLambdaMessage, file, element.Line));
+
+        if (inside.Count > 0 && !inside.Any(element =>
+                element.Attributes.Any(attribute => attribute.Name == "@key")))
+            found.Add(Issue("SNR001", MissingKeyMessage, file, start + 1));
+    }
+
+    private static void ScanLoopText(List<string> lines, int start, int end, string file, List<CodeIssue> found)
+    {
+        var hasTag = false;
+        var hasKey = false;
+
+        for (var index = start + 1; index <= end; index++)
+        {
+            hasTag |= OpeningTag.IsMatch(lines[index]);
+            hasKey |= lines[index].Contains("@key", StringComparison.Ordinal);
+
+            if (LambdaHandler.IsMatch(lines[index]))
+                found.Add(Issue("SNR002", LoopLambdaMessage, file, index + 1));
+        }
+
+        if (hasTag && !hasKey)
+            found.Add(Issue("SNR001", MissingKeyMessage, file, start + 1));
+    }
+
+    /// <summary>Index of the loop body's closing brace, or the end of the window it may occupy.</summary>
+    private static int BlockEnd(List<string> lines, int start)
     {
         var opened = false;
         var depth = 0;
-        var hasTag = false;
-        var hasKey = false;
 
         for (var index = start; index < lines.Count && index < start + BlockCap; index++)
         {
             opened |= lines[index].Contains('{');
             depth += lines[index].Count(symbol => symbol == '{') - lines[index].Count(symbol => symbol == '}');
 
-            if (index > start)
-            {
-                hasTag |= OpeningTag.IsMatch(lines[index]);
-                hasKey |= lines[index].Contains("@key", StringComparison.Ordinal);
-
-                if (LambdaHandler.IsMatch(lines[index]))
-                    found.Add(Issue("SNR002", LoopLambdaMessage, file, index + 1));
-            }
-
             if (opened && depth <= 0)
-                break;
+                return index;
         }
 
-        if (hasTag && !hasKey)
-            found.Add(Issue("SNR001", MissingKeyMessage, file, start + 1));
+        return Math.Min(start + BlockCap, lines.Count) - 1;
     }
 
     /// <summary>The opening tag starting on this line, joined across the few lines it may span.</summary>

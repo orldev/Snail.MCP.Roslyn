@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Inheritance and call edges come from the compiler, not from text.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class HierarchyTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task An_interface_reports_the_adapter_that_implements_it()
+    public async Task ImplementationsAsync_Interface_ReturnsImplementingAdapter()
     {
         var found = await fixture.Hierarchy.ImplementationsAsync(
             fixture.SolutionId,
@@ -17,7 +16,7 @@ public sealed class HierarchyTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_type_reports_the_interfaces_it_carries()
+    public async Task HierarchyAsync_Type_ReturnsInterfacesItImplements()
     {
         var hierarchy = await fixture.Hierarchy.HierarchyAsync(
             fixture.SolutionId,
@@ -29,7 +28,7 @@ public sealed class HierarchyTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_method_reports_the_methods_that_call_it()
+    public async Task CallersAsync_InterfaceMethod_ReturnsCallingMethods()
     {
         var callers = await fixture.Hierarchy.CallersAsync(
             fixture.SolutionId,

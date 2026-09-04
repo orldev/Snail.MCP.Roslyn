@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.Rename;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Works out a rename with the compiler and hands back edits; never writes to disk.</summary>
 internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRenamePlanner
 {
     private const string AmbiguousNote =

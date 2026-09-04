@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Follows inheritance and call edges that only the compiler can see.</summary>
 internal sealed class RoslynHierarchy(IPathMap paths, SolutionCache cache) : IHierarchyExplorer
 {
     private const string GeneratedNote =

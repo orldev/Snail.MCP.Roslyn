@@ -6,9 +6,9 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 /// <summary>Reads the structure of a markup file with the Razor compiler's own front-end: elements with their
 /// exact spans and attributes, across line breaks, with comments and strings excluded by the grammar itself.</summary>
 /// <remarks>The published parser stopped at 6.0 and keeps its syntax tree internal, so this adapter walks the
-/// public intermediate tree instead. A directive newer than the parser degrades a parse, never the server:
-/// any failure returns null and the caller falls back to its text scan. Legacy .cshtml lowers markup to flat
-/// content without element nodes, so it also answers null there.</remarks>
+/// public intermediate tree instead; legacy .cshtml lowers markup to flat content without element nodes and
+/// answers null there. Razor diagnostics are not inspected, so only a thrown parse returns null: markup
+/// degraded by a directive newer than 6.0 comes back as it stands, and the caller's text fallback never runs.</remarks>
 internal static class RazorMarkup
 {
     private static readonly RazorProjectEngine Engine = RazorProjectEngine.Create(
@@ -16,7 +16,9 @@ internal static class RazorMarkup
         RazorProjectFileSystem.Create("/"),
         _ => { });
 
-    internal sealed record ElementAttribute(string Name, int Line, int Column);
+    /// <summary>One attribute of an element. Text is the source it occupies, value included; for an attribute
+    /// written on a continuation line that text opens with the line break, so judge position by the element.</summary>
+    internal sealed record ElementAttribute(string Name, int Line, int Column, string Text);
 
     /// <summary>One markup element: 1-based line, 0-based column and absolute index of its opening '&lt;'.</summary>
     internal sealed record Element(
@@ -41,7 +43,7 @@ internal static class RazorMarkup
                 Array.Empty<TagHelperDescriptor>());
 
             List<Element> elements = [];
-            Walk(document.GetDocumentIntermediateNode(), elements);
+            Walk(document.GetDocumentIntermediateNode(), text, elements);
 
             return elements;
         }
@@ -51,7 +53,7 @@ internal static class RazorMarkup
         }
     }
 
-    private static void Walk(IntermediateNode node, List<Element> elements)
+    private static void Walk(IntermediateNode node, string text, List<Element> elements)
     {
         if (node is MarkupElementIntermediateNode { Source: { } source } element)
         {
@@ -63,7 +65,8 @@ internal static class RazorMarkup
                     .Select(attribute => new ElementAttribute(
                         attribute.AttributeName!,
                         attribute.Source!.Value.LineIndex + 1,
-                        attribute.Source!.Value.CharacterIndex))
+                        attribute.Source!.Value.CharacterIndex,
+                        Slice(text, attribute.Source!.Value)))
             ];
 
             elements.Add(new Element(
@@ -76,6 +79,14 @@ internal static class RazorMarkup
         }
 
         foreach (var child in node.Children)
-            Walk(child, elements);
+            Walk(child, text, elements);
+    }
+
+    private static string Slice(string text, SourceSpan span)
+    {
+        var start = Math.Clamp(span.AbsoluteIndex, 0, text.Length);
+        var end = Math.Clamp(start + span.Length, start, text.Length);
+
+        return text[start..end];
     }
 }

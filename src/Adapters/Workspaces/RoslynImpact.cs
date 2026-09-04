@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Measures what depends on a symbol before anyone changes it.</summary>
 internal sealed class RoslynImpact(IPathMap paths, SolutionCache cache) : IImpactAnalyzer
 {
     private const string ScopeNote =

@@ -4,7 +4,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Tools;
 
-/// <summary>Loading a solution and reading what the compiler says about it.</summary>
 [McpServerToolType]
 public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnostics, ISolutionSurveyor surveyor, IFileReader reader)
 {

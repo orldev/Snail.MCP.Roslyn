@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>References answer what would break, and say where they stop looking.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class ReferenceTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task A_port_used_by_a_tool_reports_its_uses()
+    public async Task FindAsync_PortUsedByTool_ReportsItsUses()
     {
         var page = await Find(nameof(ISolutionHost));
 
@@ -14,7 +13,7 @@ public sealed class ReferenceTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Every_answer_states_that_scope_is_the_loaded_solution()
+    public async Task FindAsync_AnyResult_StatesScopeIsTheLoadedSolution()
     {
         var page = await Find(nameof(ISolutionHost));
 
@@ -22,7 +21,7 @@ public sealed class ReferenceTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task An_unknown_symbol_says_so_instead_of_returning_an_empty_list()
+    public async Task FindAsync_UnknownSymbolId_ReturnsNoItemsWithNote()
     {
         var page = await fixture.References.FindAsync(
             fixture.SolutionId, new SymbolQuery("T:Nowhere.NoSuchType", null, null, 0, 0), 50, CancellationToken.None);
@@ -32,7 +31,7 @@ public sealed class ReferenceTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task No_reference_points_at_code_the_caller_cannot_edit()
+    public async Task FindAsync_AnyResult_PointsAtNoFileUnderObj()
     {
         var page = await Find(nameof(ISolutionHost));
 
@@ -50,7 +49,7 @@ public sealed class ReferenceTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_call_site_is_classified_as_an_invocation()
+    public async Task FindAsync_CallSite_IsClassifiedAsInvocation()
     {
         var page = await fixture.References.FindAsync(
             fixture.SolutionId,
@@ -62,7 +61,7 @@ public sealed class ReferenceTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_generic_registration_is_classified_as_a_type_argument()
+    public async Task FindAsync_GenericRegistration_IsClassifiedAsTypeArgument()
     {
         var page = await fixture.References.FindAsync(
             fixture.SolutionId,

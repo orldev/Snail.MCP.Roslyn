@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>The solution-wide answers describe this repository as it actually is.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class OverviewTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task Overview_names_both_projects_and_the_edge_between_them()
+    public async Task OverviewAsync_LoadedRepository_NamesBothProjectsAndTheirEdge()
     {
         var overview = await fixture.Surveyor.OverviewAsync(fixture.SolutionId, 20, CancellationToken.None);
 
@@ -15,7 +14,7 @@ public sealed class OverviewTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Overview_ranks_the_types_the_rest_of_the_code_names_most_often()
+    public async Task OverviewAsync_LoadedRepository_RanksHotspotsWithIds()
     {
         var overview = await fixture.Surveyor.OverviewAsync(fixture.SolutionId, 20, CancellationToken.None);
 
@@ -24,7 +23,7 @@ public sealed class OverviewTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Folders_and_namespaces_agree_across_this_repository()
+    public async Task CheckAsync_ThisRepository_ReportsNoFolderNamespaceMismatch()
     {
         var report = await fixture.Surveyor.CheckAsync(fixture.SolutionId, 100, CancellationToken.None);
 
@@ -34,7 +33,7 @@ public sealed class OverviewTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Health_reports_a_ready_workspace_and_the_cost_of_a_diagnostic_pass()
+    public async Task HealthAsync_ReadyWorkspace_ReportsProjectCountAndMemory()
     {
         var health = await fixture.Surveyor.HealthAsync(fixture.SolutionId, CancellationToken.None);
 

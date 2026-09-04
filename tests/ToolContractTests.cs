@@ -6,7 +6,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>The tool surface is a wire contract; this guards its shape.</summary>
 public sealed class ToolContractTests
 {
     private static readonly MethodInfo[] Tools =
@@ -27,7 +26,7 @@ public sealed class ToolContractTests
     ];
 
     [Fact]
-    public void Every_tool_is_named_in_snake_case()
+    public void ToolNames_EveryTool_AreSnakeCase()
     {
         Assert.NotEmpty(Tools);
         Assert.All(Tools, tool =>
@@ -40,7 +39,7 @@ public sealed class ToolContractTests
     }
 
     [Fact]
-    public void Every_tool_description_comes_from_the_catalogue()
+    public void ToolDescription_EveryTool_ComesFromToolDescriptions()
     {
         Assert.All(Tools, tool =>
         {
@@ -52,7 +51,7 @@ public sealed class ToolContractTests
     }
 
     [Fact]
-    public void Every_tool_parameter_carries_a_description_for_the_model()
+    public void ToolParameters_EveryNonCancellationParameter_CarryDescription()
     {
         Assert.All(Tools, tool =>
             Assert.All(
@@ -63,7 +62,7 @@ public sealed class ToolContractTests
     }
 
     [Fact]
-    public void Every_refactoring_tool_promises_not_to_write()
+    public void RefactorToolDescriptions_EveryTool_PromiseNeverWrites()
     {
         var refactorings = Tools.Where(tool => tool.DeclaringType == typeof(RefactorTools));
 
@@ -75,7 +74,7 @@ public sealed class ToolContractTests
     }
 
     [Fact]
-    public void The_surface_is_exactly_the_declared_catalogue()
+    public void ToolSurface_AgainstDeclaredCatalogue_MatchesExactly()
     {
         string[] declared =
         [
@@ -96,7 +95,7 @@ public sealed class ToolContractTests
     }
 
     [Fact]
-    public void Every_tool_that_returns_edits_promises_not_to_write()
+    public void EditReturningToolDescriptions_EveryTool_PromiseNeverWrites()
     {
         string[] editing = ["rename_symbol", "rename_namespace", "move_type", "organize_usings", "change_signature", "get_code_fixes"];
 

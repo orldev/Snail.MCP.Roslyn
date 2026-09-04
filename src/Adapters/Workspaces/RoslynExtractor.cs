@@ -3,9 +3,9 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Plans the extraction of a markup block into a new component. The caller supplies the judgment —
-/// which lines, the renames, the @code, the replacement tag — and this adapter supplies the guarantees:
-/// element boundaries checked by the Razor parser, and leaks named by compiling the candidate in context.</summary>
+/// <summary>The caller supplies the judgment — which lines, the renames, the @code, the replacement tag.
+/// This supplies the guarantees: element boundaries checked by the Razor parser, and leaks named by
+/// compiling the candidate in context.</summary>
 internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : IComponentExtractor
 {
     private const string PlanNote =
@@ -191,10 +191,9 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
                 diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Location.SourceTree == generated);
     }
 
-    /// <summary>An element the range would cut apart, phrased as the refusal the caller reads. An element
-    /// that contains the whole range is no cut — lifting a block out of its container is the usual case —
-    /// and neither is one that lies fully inside or fully outside. Only an element with exactly one of its
-    /// ends inside the range loses the other half.</summary>
+    /// <summary>An element the range would cut apart, phrased as the refusal the caller reads. Only an element
+    /// with exactly one end inside the range loses its other half: one that contains the whole range is the
+    /// usual case of lifting a block out of its container, and one lying fully inside or outside is no cut.</summary>
     private static string? Straddler(
         IReadOnlyList<RazorMarkup.Element> elements,
         SourceText text,

@@ -1,11 +1,10 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Structural refactorings return edits, state their limits, and never write.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class StructureTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task Moving_a_type_leaves_the_files_on_disk_untouched()
+    public async Task MoveTypeAsync_ValidTarget_ReturnsEditsAndLeavesDiskUntouched()
     {
         var origin = Path.Combine(RepositoryPaths.Source, "Domain", "LineEdit.cs");
         var before = await File.ReadAllTextAsync(origin);
@@ -23,7 +22,7 @@ public sealed class StructureTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_namespace_rename_of_a_different_depth_proposes_no_edits_and_says_why()
+    public async Task RenameNamespaceAsync_DifferentSegmentCount_ProposesNoEditsAndExplains()
     {
         var plan = await fixture.Structure.RenameNamespaceAsync(
             fixture.SolutionId,
@@ -37,7 +36,7 @@ public sealed class StructureTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_namespace_rename_rewrites_the_declaration_and_the_files_that_use_it()
+    public async Task RenameNamespaceAsync_SameSegmentCount_EditsDeclarationAndUsers()
     {
         var plan = await fixture.Structure.RenameNamespaceAsync(
             fixture.SolutionId,
@@ -51,7 +50,7 @@ public sealed class StructureTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Changing_a_signature_edits_the_declaration_and_lists_every_call_site_as_a_conflict()
+    public async Task ChangeSignatureAsync_InterfaceMethod_EditsDeclarationAndListsCallSitesAsConflicts()
     {
         var plan = await fixture.Structure.ChangeSignatureAsync(
             fixture.SolutionId,

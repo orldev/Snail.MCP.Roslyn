@@ -9,7 +9,6 @@ using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Runs analyzers over the loaded solution and turns the repairs they carry into edits.</summary>
 internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOptions<WorkspaceOptions> options)
     : IAnalyzerRunner
 {

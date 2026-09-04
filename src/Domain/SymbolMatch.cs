@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-/// <summary>One candidate returned by a name search, carrying the identifier every other tool expects.</summary>
+/// <summary>One candidate from a name search, carrying the id the other tools address symbols by.</summary>
 public sealed record SymbolMatch(
     string Id,
     string Name,

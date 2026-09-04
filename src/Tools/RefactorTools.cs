@@ -4,7 +4,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Tools;
 
-/// <summary>Refactorings worked out by the compiler and returned as edits for the caller to apply.</summary>
 [McpServerToolType]
 public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer structure, IComponentExtractor extractor)
 {

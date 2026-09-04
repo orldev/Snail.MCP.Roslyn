@@ -4,7 +4,6 @@ using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Reads compiler diagnostics against the current contents of the files on disk.</summary>
 internal sealed class RoslynDiagnostics(IPathMap paths, SolutionCache cache, IOptions<WorkspaceOptions> options)
     : IDiagnosticReader
 {

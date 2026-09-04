@@ -1,16 +1,16 @@
 namespace Snail.MCP.Roslyn.Tests;
 
-/// <summary>Resolving a name to the identifier the other tools require.</summary>
 [Collection(nameof(AnalysisCollection))]
 public sealed class SymbolLookupTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task Searching_a_known_type_returns_an_identifier_that_describes_back()
+    public async Task SearchAsync_KnownType_ReturnsIdThatDescribeAsyncResolves()
     {
         var matches = await fixture.Symbols.SearchAsync(
             fixture.SolutionId, nameof(RepositoryPaths), SymbolKindFilter.Type, 10, CancellationToken.None);
 
         var match = Assert.Single(matches, candidate => candidate.Name == nameof(RepositoryPaths));
+
         var details = await fixture.Symbols.DescribeAsync(
             fixture.SolutionId, new SymbolQuery(match.Id, null, null, 0, 0), CancellationToken.None);
 
@@ -19,7 +19,7 @@ public sealed class SymbolLookupTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task An_empty_query_returns_nothing_instead_of_everything()
+    public async Task SearchAsync_BlankQuery_ReturnsEmpty()
     {
         var matches = await fixture.Symbols.SearchAsync(
             fixture.SolutionId, "   ", SymbolKindFilter.Any, 10, CancellationToken.None);
@@ -28,7 +28,7 @@ public sealed class SymbolLookupTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task A_position_inside_a_declaration_resolves_to_that_symbol()
+    public async Task DescribeAsync_PositionInsideDeclaration_ResolvesToThatSymbol()
     {
         var file = Path.Combine(RepositoryPaths.Source, "Domain", "IssueSeverity.cs");
         var line = File.ReadAllLines(file).Index().First(entry => entry.Item.Contains("enum IssueSeverity")).Index + 1;
@@ -41,7 +41,7 @@ public sealed class SymbolLookupTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task Reading_a_symbol_returns_its_own_declaration_and_nothing_else()
+    public async Task ReadAsync_TypeSymbol_ReturnsDeclarationWithoutSurroundingCode()
     {
         var matches = await fixture.Symbols.SearchAsync(
             fixture.SolutionId, nameof(SymbolSource), SymbolKindFilter.Type, 5, CancellationToken.None);

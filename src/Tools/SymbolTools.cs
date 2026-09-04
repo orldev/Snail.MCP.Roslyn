@@ -4,7 +4,6 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 
 namespace Snail.MCP.Roslyn.Tools;
 
-/// <summary>Resolving names to symbols and following what uses them.</summary>
 [McpServerToolType]
 public sealed class SymbolTools(
     ISymbolLookup symbols,

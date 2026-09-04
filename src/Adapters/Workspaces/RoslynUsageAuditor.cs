@@ -3,7 +3,6 @@ using Microsoft.CodeAnalysis.FindSymbols;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Audits what the solution declares against what it actually uses and what its tests reach.</summary>
 internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : ICodeUsageAuditor
 {
     private const string UnusedNote =
