@@ -11,13 +11,20 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
     private readonly ServiceProvider provider;
 
     public AnalysisFixture()
+        : this([])
+    {
+    }
+
+    /// <summary>Settings a test needs to differ from the defaults, as configuration keys. Not public: a collection
+    /// fixture may declare one public constructor only, and that one is the suite's.</summary>
+    internal AnalysisFixture(IEnumerable<KeyValuePair<string, string?>> settings)
     {
         if (!MSBuildLocator.IsRegistered)
             MSBuildLocator.RegisterDefaults();
 
         ServiceCollection services = [];
         services.AddLogging();
-        services.AddCodeAnalysis(new ConfigurationBuilder().Build());
+        services.AddCodeAnalysis(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
 
         provider = services.BuildServiceProvider();
     }

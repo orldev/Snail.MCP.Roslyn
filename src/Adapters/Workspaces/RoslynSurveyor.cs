@@ -130,6 +130,7 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
             documents,
             (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
             Environment.WorkingSet / (1024 * 1024),
+            cache.Loaded,
             options.Value.AllowScripts,
             Advice(compiled, restored));
     }

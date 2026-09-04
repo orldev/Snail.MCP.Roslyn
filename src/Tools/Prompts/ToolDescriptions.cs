@@ -88,7 +88,7 @@ public static class ToolDescriptions
 
     public const string HealthCheck =
         "Report whether the server itself is in a state where its answers can be trusted: readiness, project and document counts, "
-        + "how long a full diagnostic pass takes, memory in use, and whether scripting is enabled. "
+        + "how long a full diagnostic pass takes, memory in use, how many solutions are loaded, and whether scripting is enabled. "
         + "Call this when an answer looks suspiciously empty or suspiciously fast.";
 
     public const string FindImplementations =

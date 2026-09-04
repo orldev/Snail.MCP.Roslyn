@@ -21,6 +21,11 @@ public static class McpServerExtensions
                 }
                 catch (Exception error)
                 {
+                    // The caller is handed the message alone; the trace behind it exists nowhere else.
+                    context.Server.Services?.GetService<ILoggerFactory>()
+                        ?.CreateLogger("Snail.MCP.Roslyn.Tools")
+                        .LogError(error, "Tool {Tool} failed", context.Params?.Name);
+
                     return new CallToolResult
                     {
                         IsError = true,

@@ -2,11 +2,13 @@ using System.Collections.Concurrent;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Options;
+using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
 /// <summary>Holds loaded solutions and brings them level with the files on disk before every answer.</summary>
-internal sealed class SolutionCache : IDisposable
+internal sealed class SolutionCache(IOptions<WorkspaceOptions> options) : IDisposable
 {
     /// <summary>macOS and Windows both hand back paths whose case need not match MSBuild's.</summary>
     private static readonly StringComparer PathComparer =
@@ -20,12 +22,39 @@ internal sealed class SolutionCache : IDisposable
 
     private readonly ConcurrentDictionary<string, Entry> entries = new(StringComparer.Ordinal);
 
+    /// <summary>Ids dropped to stay within the ceiling, so a call carrying one is told what happened to it
+    /// rather than being told it never loaded the solution.</summary>
+    private readonly ConcurrentDictionary<string, byte> dropped = new(StringComparer.Ordinal);
+
+    public int Loaded => entries.Count;
+
     public void Store(string id, MSBuildWorkspace workspace, Solution solution, string entryPath)
     {
         if (entries.TryRemove(id, out var previous))
             previous.Retire();
 
+        dropped.TryRemove(id, out _);
         entries[id] = Adopt(workspace, solution, entryPath);
+
+        Evict();
+    }
+
+    /// <summary>Drops the solutions used longest ago once there are more than the ceiling allows. Each one holds
+    /// its own compilations, so an unbounded cache grows until the process is killed.</summary>
+    private void Evict()
+    {
+        var ceiling = Math.Max(1, options.Value.MaxSolutions);
+
+        while (entries.Count > ceiling)
+        {
+            var stale = entries.OrderBy(entry => entry.Value.LastUsed).First();
+
+            if (!entries.TryRemove(stale.Key, out var evicted))
+                continue;
+
+            dropped[stale.Key] = 0;
+            evicted.Retire();
+        }
     }
 
     /// <summary>The solution level with the files on disk. Callers may run concurrently, so the whole
@@ -34,7 +63,13 @@ internal sealed class SolutionCache : IDisposable
     public async Task<Solution> FreshAsync(string id, CancellationToken cancellationToken)
     {
         if (!entries.TryGetValue(id, out var entry))
-            throw new InvalidOperationException($"Solution '{id}' is not loaded. Call load_solution first.");
+        {
+            throw new InvalidOperationException(dropped.ContainsKey(id)
+                ? $"Solution '{id}' was dropped to keep at most {Math.Max(1, options.Value.MaxSolutions)} solutions in memory. Call load_solution again."
+                : $"Solution '{id}' is not loaded. Call load_solution first.");
+        }
+
+        entry.LastUsed = DateTime.UtcNow;
 
         await entry.EnterAsync(cancellationToken);
 
@@ -236,6 +271,8 @@ internal sealed class SolutionCache : IDisposable
         private readonly SemaphoreSlim gate = new(1, 1);
 
         public Solution Solution { get; set; } = solution;
+
+        public DateTime LastUsed { get; set; } = DateTime.UtcNow;
 
         public string EntryPath { get; } = entryPath;
 

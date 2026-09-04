@@ -7,5 +7,6 @@ public sealed record HealthReport(
     int Documents,
     long DiagnosticsMilliseconds,
     long WorkingSetMegabytes,
+    int LoadedSolutions,
     bool ScriptingEnabled,
     IReadOnlyList<string> Notes);

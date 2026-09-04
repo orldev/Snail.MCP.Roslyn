@@ -18,4 +18,8 @@ public sealed class WorkspaceOptions
     public string AnalyzerPolicy { get; init; } = "default";
 
     public int ScriptTimeoutSeconds { get; init; } = 30;
+
+    /// <summary>How many solutions stay loaded at once. Each holds its own compilations, so the ceiling is on
+    /// memory; the one used longest ago is dropped and has to be loaded again.</summary>
+    public int MaxSolutions { get; init; } = 4;
 }

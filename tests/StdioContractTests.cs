@@ -81,6 +81,40 @@ public sealed class StdioContractTests
             tool => Assert.False(string.IsNullOrWhiteSpace(tool.GetProperty("description").GetString())));
     }
 
+    [Fact]
+    public async Task CallTool_FailingCall_AnswersTheCallerAndLeavesTheTraceOnStandardError()
+    {
+        using var server = Start();
+
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"contract","version":"0"}}}
+            """);
+        await server.StandardInput.WriteLineAsync("""{"jsonrpc":"2.0","method":"notifications/initialized"}""");
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"get_diagnostics","arguments":{"solutionId":"never-loaded"}}}
+            """);
+        await server.StandardInput.FlushAsync(CancellationToken.None);
+
+        var answer = await ReadUntilAsync(server, 2);
+
+        Assert.NotNull(answer);
+
+        var content = answer!.RootElement.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString();
+
+        Assert.Contains("not loaded", content ?? string.Empty, StringComparison.Ordinal);
+
+        server.StandardInput.Close();
+
+        var logged = await server.StandardError.ReadToEndAsync(CancellationToken.None);
+
+        await server.WaitForExitAsync(CancellationToken.None);
+
+        Assert.Contains("get_diagnostics", logged, StringComparison.Ordinal);
+        Assert.Contains(nameof(InvalidOperationException), logged, StringComparison.Ordinal);
+    }
+
     private static async Task<JsonDocument?> ReadUntilAsync(Process server, int id)
     {
         while (await server.StandardOutput.ReadLineAsync(CancellationToken.None) is { } line)
