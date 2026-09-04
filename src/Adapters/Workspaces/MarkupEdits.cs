@@ -61,12 +61,13 @@ internal sealed class MarkupEdits(IPathMap paths)
     /// <summary>Positions of every tag of the component in the markup files that can see its project.
     /// The Razor front-end supplies them when it can — a tag inside a comment or a string is then never
     /// touched — and a text scan fills in when it cannot.</summary>
-    public static async Task<Dictionary<string, HashSet<(int Line, int Column)>>> TagSpansAsync(
+    public static async Task<(Dictionary<string, HashSet<(int Line, int Column)>> Spans, IReadOnlyList<string> Scanned)> TagSpansAsync(
         Solution solution,
         Project declaring,
         string name,
         CancellationToken cancellationToken)
     {
+        List<string> scanned = [];
         var tag = new Regex($@"<(/?){Regex.Escape(name)}(?=[\s/>])", RegexOptions.None, TimeSpan.FromSeconds(1));
         var graph = solution.GetProjectDependencyGraph();
 
@@ -89,6 +90,8 @@ internal sealed class MarkupEdits(IPathMap paths)
                     continue;
                 }
 
+                scanned.Add(document.FilePath!);
+
                 foreach (var line in text.Lines)
                 {
                     foreach (Match match in tag.Matches(line.ToString()))
@@ -97,7 +100,7 @@ internal sealed class MarkupEdits(IPathMap paths)
             }
         }
 
-        return spans;
+        return (spans, scanned);
     }
 
     /// <summary>The opening and closing tag name positions of one parsed element, when it names the component —
@@ -126,13 +129,21 @@ internal sealed class MarkupEdits(IPathMap paths)
         if (element.Start + element.Length > text.Length)
             return;
 
+        // An element's own closing tag ends its span. Anything else inside that looks like one belongs to a
+        // nested element, an attribute value or a comment — a text search rewrote those too.
         var slice = text.ToString(new TextSpan(element.Start, element.Length));
-        var closing = $"</{element.TagName}";
+        var opened = slice.LastIndexOf("</", StringComparison.Ordinal);
 
-        for (var index = slice.IndexOf(closing, StringComparison.Ordinal);
-             index >= 0;
-             index = slice.IndexOf(closing, index + closing.Length, StringComparison.Ordinal))
-            AtIndex(element.Start + index + 2 + prefix);
+        if (opened < 0)
+            return;
+
+        var closing = slice[opened..];
+        var head = $"</{element.TagName}";
+
+        if (!closing.StartsWith(head, StringComparison.Ordinal) || closing[head.Length..].Trim() != ">")
+            return;
+
+        AtIndex(element.Start + opened + 2 + prefix);
     }
 
     /// <summary>Authored positions of the symbol's declaration and every compiler reference, recovered through

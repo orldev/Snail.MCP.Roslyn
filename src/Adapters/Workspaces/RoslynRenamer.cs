@@ -146,7 +146,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         RenameScope scope,
         CancellationToken cancellationToken)
     {
-        var spans = await MarkupEdits.TagSpansAsync(solution, declaring.Project, symbol.Name, cancellationToken);
+        var (spans, scanned) = await MarkupEdits.TagSpansAsync(solution, declaring.Project, symbol.Name, cancellationToken);
         var (mapped, _) = await MarkupEdits.MappedSpansAsync(solution, symbol, markupOnly: false, cancellationToken);
 
         MarkupEdits.Merge(spans, mapped);
@@ -158,7 +158,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
 
         var unhandled = await scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
 
-        List<string> notes = [ComponentNote, .. Skipped(skipped, symbol.Name)];
+        List<string> notes = [ComponentNote, .. Scanned(scanned), .. Skipped(skipped, symbol.Name)];
 
         if (unhandled.Count > 0)
             notes.Add(UnhandledNote);
@@ -207,11 +207,17 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         CancellationToken cancellationToken)
     {
         var (spans, _) = await MarkupEdits.MappedSpansAsync(solution, symbol, markupOnly, cancellationToken);
+        IReadOnlyList<string> scanned = [];
 
         if (MarkupEdits.IsComponent(symbol)
             && await MarkupEdits.UniquelyNamedAsync(solution, symbol, cancellationToken)
             && DeclaringProject(solution, symbol) is { } declaring)
-            MarkupEdits.Merge(spans, await MarkupEdits.TagSpansAsync(solution, declaring, symbol.Name, cancellationToken));
+        {
+            var tags = await MarkupEdits.TagSpansAsync(solution, declaring, symbol.Name, cancellationToken);
+
+            MarkupEdits.Merge(spans, tags.Spans);
+            scanned = tags.Scanned;
+        }
 
         var (edits, skipped) = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
 
@@ -220,7 +226,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
             && await MarkupEdits.DeclaringMarkupAsync(solution, symbol, cancellationToken) is { } authored)
             edits = editor.WithFileRename(edits, authored.Authored, newName);
 
-        List<string> notes = [.. ConventionNotes(symbol), .. Skipped(skipped, symbol.Name)];
+        List<string> notes = [.. ConventionNotes(symbol), .. Scanned(scanned), .. Skipped(skipped, symbol.Name)];
 
         if (edits.Count > 0)
             notes.Insert(0, MarkupEditsNote);
@@ -240,6 +246,15 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         && symbol.Locations.Any(location => location.IsInSource
             && location.GetMappedLineSpan() is { HasMappedPath: true } span
             && MarkupMap.IsMarkup(span.Path));
+
+    /// <summary>Files whose tags were found by scanning text rather than by the Razor grammar. The grammar
+    /// excludes a tag inside a comment or a string; a scan cannot, and these edits rewrite what it found.</summary>
+    private static IReadOnlyList<string> Scanned(IReadOnlyList<string> files) =>
+        files.Count == 0
+            ? []
+            : [$"The Razor grammar did not read {files.Count} markup file(s), so their tags were found by scanning "
+                + "the text: an occurrence inside a comment or a string can be among the edits. Check them before "
+                + $"applying: {string.Join(", ", files.Take(5).Select(Path.GetFileName))}."];
 
     private static IReadOnlyList<string> Skipped(int count, string name) =>
         count > 0 ? [string.Format(SkippedNote, count, name)] : [];

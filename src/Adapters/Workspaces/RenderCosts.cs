@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.Text;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-/// <summary>Finds documented Blazor render costs in markup text, so reading a component shows its whole picture.</summary>
+/// <summary>Finds documented Blazor render costs in markup, so reading a component shows its whole picture.</summary>
 /// <remarks>These are pattern matches, not compiler judgments: each names a cost Blazor documents, and every
 /// finding carries the SNR prefix so it can never be mistaken for a compiler diagnostic. Whether the cost sits
 /// on a hot path is the caller's judgment, and the note on the answer says so.</remarks>
@@ -22,6 +22,8 @@ internal static class RenderCosts
         "CascadingValue without IsFixed subscribes every consumer to change notifications. "
         + "If the value never changes, IsFixed=\"true\" removes the subscriptions.";
 
+    private const string Cascading = "CascadingValue";
+
     private const int BlockCap = 200;
 
     private static readonly Regex Loop = new(
@@ -36,27 +38,11 @@ internal static class RenderCosts
     private static readonly Regex Cascade = new(
         @"<CascadingValue[\s>]", RegexOptions.None, TimeSpan.FromSeconds(1));
 
-    public static IReadOnlyList<CodeIssue> Scan(SourceText text, string file)
-    {
-        List<string> lines = [.. text.Lines.Select(line => line.ToString())];
-        var code = CodeRegions(lines);
-        var elements = RazorMarkup.Parse(text, file);
-        List<CodeIssue> found = [];
-
-        for (var index = 0; index < lines.Count; index++)
-        {
-            if (code[index])
-                continue;
-
-            if (Loop.IsMatch(lines[index]))
-                ScanLoop(lines, index, elements, file, found);
-
-            if (Cascade.IsMatch(lines[index]) && !Tag(lines, index).Contains("IsFixed", StringComparison.Ordinal))
-                found.Add(Issue("SNR003", UnfixedCascadeMessage, file, index + 1));
-        }
-
-        return [.. found.DistinctBy(issue => (issue.Id, issue.Line)).OrderBy(issue => issue.Line)];
-    }
+    public static IReadOnlyList<CodeIssue> Scan(SourceText text, string file) =>
+        Ordered(
+            RazorMarkup.LoopsIn(text, file) is { } loops && RazorMarkup.Parse(text, file) is { } elements
+                ? FromTree(loops, elements, file)
+                : FromText([.. text.Lines.Select(line => line.ToString())], file));
 
     /// <summary>Lines belonging to an @code or @functions block, where a loop is logic rather than rendering.</summary>
     public static bool[] CodeRegions(List<string> lines)
@@ -92,38 +78,62 @@ internal static class RenderCosts
         return code;
     }
 
-    /// <summary>Judges one loop block. With a parse in hand the elements themselves answer both questions —
-    /// a handler lambda is any attribute value carrying an arrow, whichever line the attribute wraps onto,
-    /// and @key is an attribute rather than a substring — and the line scan stands in when there is none.</summary>
-    private static void ScanLoop(
-        List<string> lines,
-        int start,
-        IReadOnlyList<RazorMarkup.Element>? elements,
-        string file,
-        List<CodeIssue> found)
+    /// <summary>The three costs read off the parsed markup: the loops the grammar found, the elements each one
+    /// repeats, and the attributes those elements carry.</summary>
+    private static List<CodeIssue> FromTree(
+        IReadOnlyList<RazorMarkup.Loop> loops,
+        IReadOnlyList<RazorMarkup.Element> elements,
+        string file)
     {
-        var end = BlockEnd(lines, start);
+        List<CodeIssue> found = [];
 
-        if (elements is null)
+        foreach (var loop in loops)
         {
-            ScanLoopText(lines, start, end, file, found);
+            foreach (var element in loop.Elements.Where(Lambda))
+                found.Add(Issue("SNR002", LoopLambdaMessage, file, element.Line));
 
-            return;
+            if (loop.Elements.Count > 0 && !loop.Elements.Any(Keyed))
+                found.Add(Issue("SNR001", MissingKeyMessage, file, loop.Line));
         }
 
-        List<RazorMarkup.Element> inside =
-            [.. elements.Where(element => element.Line > start + 1 && element.Line <= end + 1)];
+        foreach (var element in elements.Where(element =>
+                     string.Equals(element.TagName, Cascading, StringComparison.Ordinal) && !Fixed(element)))
+            found.Add(Issue("SNR003", UnfixedCascadeMessage, file, element.Line));
 
-        foreach (var element in inside.Where(element =>
-                     element.Attributes.Any(attribute => attribute.Text.Contains("=>", StringComparison.Ordinal))))
-            found.Add(Issue("SNR002", LoopLambdaMessage, file, element.Line));
-
-        if (inside.Count > 0 && !inside.Any(element =>
-                element.Attributes.Any(attribute => attribute.Name == "@key")))
-            found.Add(Issue("SNR001", MissingKeyMessage, file, start + 1));
+        return found;
     }
 
-    private static void ScanLoopText(List<string> lines, int start, int end, string file, List<CodeIssue> found)
+    private static bool Lambda(RazorMarkup.Element element) =>
+        element.Attributes.Any(attribute => attribute.Text.Contains("=>", StringComparison.Ordinal));
+
+    private static bool Keyed(RazorMarkup.Element element) =>
+        element.Attributes.Any(attribute => attribute.Name == "@key");
+
+    private static bool Fixed(RazorMarkup.Element element) =>
+        element.Attributes.Any(attribute => attribute.Name.Equals("IsFixed", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>The same three costs read off the text, for markup the grammar did not read.</summary>
+    private static List<CodeIssue> FromText(List<string> lines, string file)
+    {
+        var code = CodeRegions(lines);
+        List<CodeIssue> found = [];
+
+        for (var index = 0; index < lines.Count; index++)
+        {
+            if (code[index])
+                continue;
+
+            if (Loop.IsMatch(lines[index]))
+                ScanLoop(lines, index, BlockEnd(lines, index), file, found);
+
+            if (Cascade.IsMatch(lines[index]) && !Tag(lines, index).Contains("IsFixed", StringComparison.Ordinal))
+                found.Add(Issue("SNR003", UnfixedCascadeMessage, file, index + 1));
+        }
+
+        return found;
+    }
+
+    private static void ScanLoop(List<string> lines, int start, int end, string file, List<CodeIssue> found)
     {
         var hasTag = false;
         var hasKey = false;
@@ -174,6 +184,9 @@ internal static class RenderCosts
 
         return tag;
     }
+
+    private static IReadOnlyList<CodeIssue> Ordered(List<CodeIssue> found) =>
+        [.. found.DistinctBy(issue => (issue.Id, issue.Line)).OrderBy(issue => issue.Line)];
 
     private static CodeIssue Issue(string id, string message, string file, int line) =>
         new(id, IssueSeverity.Info, message, file, line, 1, 1);

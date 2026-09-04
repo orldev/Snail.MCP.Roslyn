@@ -150,6 +150,32 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         <Badge Label="modern" Count="1" />
         """;
 
+    private const string Quoted =
+        """
+        <Badge Label="write </Badge> to close it" Count="1" />
+
+        <Badge Count="2">
+            <span>real</span>
+        </Badge>
+        """;
+
+    private const string Braces =
+        """
+        @foreach (var item in items)
+        {
+            <p>type { to open a block</p>
+            <li>@item</li>
+        }
+
+        <button @onclick="() => Pick(1)">outside every loop</button>
+
+        @code {
+            private readonly string[] items = ["a"];
+
+            private void Pick(int value) => _ = value;
+        }
+        """;
+
     private readonly string folder = Directory.CreateTempSubdirectory("roslyn-razor").FullName;
 
     private readonly AnalysisFixture fixture = new();
@@ -166,6 +192,8 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         await File.WriteAllTextAsync(Path.Combine(folder, "Cards.razor"), Cards);
         await File.WriteAllTextAsync(Path.Combine(folder, "Wide.razor"), Wide);
         await File.WriteAllTextAsync(Path.Combine(folder, "Rows.razor"), Rows);
+        await File.WriteAllTextAsync(Path.Combine(folder, "Quoted.razor"), Quoted);
+        await File.WriteAllTextAsync(Path.Combine(folder, "Braces.razor"), Braces);
 
         // Same leaf name in two folders: the generated hint names differ only by the directory prefix.
         var nested = Directory.CreateDirectory(Path.Combine(folder, "Components", "Pages")).FullName;
@@ -211,6 +239,18 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 
         Assert.Contains(view.Directives, directive => directive.Text.StartsWith("@page", StringComparison.Ordinal));
         Assert.Contains(view.Directives, directive => directive.Text.StartsWith("@inject", StringComparison.Ordinal));
+    }
+
+    /// <summary>The two ways this file can be read differ in what the answer may be trusted about, and they look
+    /// identical unless the answer says which one it was.</summary>
+    [Fact]
+    public async Task ReadAsync_MarkupTheGrammarReads_SaysSoRatherThanLeavingTheWayItWasReadUnstated()
+    {
+        var view = await fixture.Reader.ReadAsync(
+            solutionId, Path.Combine(folder, "Panel.razor"), 1, 2000, CancellationToken.None);
+
+        Assert.Contains(view.Notes, note => note.Contains("read by the Razor grammar", StringComparison.Ordinal));
+        Assert.DoesNotContain(view.Notes, note => note.Contains("scanning the text", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -458,6 +498,50 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         // Line 5, not 3: the tag inside the Razor comment is excluded, which only the element tree does.
         // @rendermode is unknown to the 6.0 grammar but reads as an expression, so the tree survives it.
         Assert.Equal(5, tag.Line);
+    }
+
+    /// <summary>A closing tag is where the element's own span ends. Everything else that reads like one — inside
+    /// an attribute value, inside a comment — is text, and a rename that rewrites it corrupts the markup.</summary>
+    [Fact]
+    public async Task PlanAsync_ClosingTagInsideAnAttributeValue_IsLeftAlone()
+    {
+        var view = await fixture.Reader.ReadAsync(
+            solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
+
+        var component = Assert.Single(view.Symbols, symbol => symbol.Name == "Badge" && symbol.Kind == "NamedType");
+
+        var plan = await fixture.Renames.PlanAsync(
+            solutionId,
+            new SymbolQuery(component.Id, null, null, 0, 0),
+            "Chip",
+            new RenameScope(true, true, false, false),
+            CancellationToken.None);
+
+        var quoted = Assert.Single(plan.Edits, edit => edit.File.EndsWith("Quoted.razor", StringComparison.Ordinal));
+
+        var attribute = Assert.Single(quoted.Lines, line => line.Line == 1);
+        Assert.Contains("<Chip Label=", attribute.After, StringComparison.Ordinal);
+        Assert.Contains("</Badge> to close it", attribute.After, StringComparison.Ordinal);
+
+        Assert.Single(quoted.Lines, line => line.Line == 5 && line.After.Contains("</Chip>", StringComparison.Ordinal));
+    }
+
+    /// <summary>Where a loop ends is a question about the block, not about the braces on the lines: a brace in
+    /// markup text is text, and counting it swallowed everything below the loop.</summary>
+    [Fact]
+    public async Task ReadAsync_BraceInMarkupTextInsideALoop_KeepsTheLoopFromSwallowingWhatFollowsIt()
+    {
+        var view = await fixture.Reader.ReadAsync(
+            solutionId, Path.Combine(folder, "Braces.razor"), 1, 2000, CancellationToken.None);
+
+        var costs = string.Join(
+            ", ",
+            view.Issues.Items
+                .Where(issue => issue.Id.StartsWith("SNR", StringComparison.Ordinal))
+                .Select(issue => $"{issue.Id}@{issue.Line}"));
+
+        // The lambda on line 8 is outside the loop, so it costs nothing per item and is not a finding.
+        Assert.Equal("SNR001@1", costs);
     }
 
     [Fact]

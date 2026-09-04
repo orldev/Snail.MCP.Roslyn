@@ -36,6 +36,15 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
         "The Razor generator produced no output for this markup file, so its diagnostics and @code declarations "
         + "are unknown here, not absent.";
 
+    private const string GrammarNote =
+        "Structure here was read by the Razor grammar: a tag inside a comment or a string is not listed, and a tag "
+        + "broken across lines is still one tag.";
+
+    private const string TextScanNote =
+        "The Razor grammar did not read this file — a .cshtml view, or markup its frozen 6.0 front end refused — so "
+        + "tags and render costs come from scanning the text: a tag inside a comment or a string can be listed, and "
+        + "one broken across lines can be missed.";
+
     private const string RenderCostNote =
         "Issues with an SNR id are render-cost patterns matched on the markup text, not compiler diagnostics: "
         + "each names a documented Blazor cost, but whether it sits on a hot path is your judgment.";
@@ -123,7 +132,10 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
 
         outline.Sort((left, right) => left.Line.CompareTo(right.Line));
 
-        List<string> notes = [MarkupViewNote, .. Notes(solution)];
+        // Which of the two ways the file was read changes what the answer can be trusted about, so it is stated.
+        var grammar = RazorMarkup.Parse(text, markup.FilePath!) is not null;
+
+        List<string> notes = [MarkupViewNote, grammar ? GrammarNote : TextScanNote, .. Notes(solution)];
 
         if (generated is null)
             notes.Insert(0, NoGeneratorNote);
