@@ -34,6 +34,10 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         "More than one component in this solution bears this name, so a markup tag cannot be attributed to this "
         + "one mechanically and no tag edits are proposed.";
 
+    private const string SkippedNote =
+        "{0} mapped position(s) did not carry '{1}' where the generator's #line mapping placed them and were "
+        + "left alone, so this rename is incomplete. Search those files for the name yourself before applying.";
+
     private const string MarkupEditsNote =
         "Edits in .razor and .cshtml files rewrite the component's tags and the positions the generator's #line "
         + "mapping recovers. The compiler's conflict check does not cover markup; verify with get_diagnostics "
@@ -147,12 +151,17 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
 
         MarkupEdits.Merge(spans, mapped);
 
-        var edits = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
+        var (edits, skipped) = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
 
         if (scope.RenameFile)
             edits = editor.WithFileRename(edits, declaring.Authored, newName);
 
         var unhandled = await scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
+
+        List<string> notes = [ComponentNote, .. Skipped(skipped, symbol.Name)];
+
+        if (unhandled.Count > 0)
+            notes.Add(UnhandledNote);
 
         return new RenamePlan(
             SymbolFacts.IdOf(symbol),
@@ -162,7 +171,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
             unhandled,
             [],
             [],
-            unhandled.Count > 0 ? [ComponentNote, UnhandledNote] : [ComponentNote]);
+            notes);
     }
 
     /// <summary>The plan for an @code member: edits at the authored positions of its declaration and references.</summary>
@@ -173,10 +182,10 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         CancellationToken cancellationToken)
     {
         var (spans, synthesized) = await MarkupEdits.MappedSpansAsync(solution, symbol, markupOnly: false, cancellationToken);
-        var edits = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
+        var (edits, skipped) = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
         var unhandled = await scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
 
-        List<string> notes = [MappedMemberNote, .. ConventionNotes(symbol)];
+        List<string> notes = [MappedMemberNote, .. ConventionNotes(symbol), .. Skipped(skipped, symbol.Name)];
 
         if (synthesized > 0)
             notes.Add($"{synthesized} use(s) exist only in code the generator synthesizes and have no authored position to edit.");
@@ -204,14 +213,14 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
             && DeclaringProject(solution, symbol) is { } declaring)
             MarkupEdits.Merge(spans, await MarkupEdits.TagSpansAsync(solution, declaring, symbol.Name, cancellationToken));
 
-        var edits = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
+        var (edits, skipped) = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
 
         if (MarkupEdits.IsComponent(symbol)
             && scope.RenameFile
             && await MarkupEdits.DeclaringMarkupAsync(solution, symbol, cancellationToken) is { } authored)
             edits = editor.WithFileRename(edits, authored.Authored, newName);
 
-        List<string> notes = [.. ConventionNotes(symbol)];
+        List<string> notes = [.. ConventionNotes(symbol), .. Skipped(skipped, symbol.Name)];
 
         if (edits.Count > 0)
             notes.Insert(0, MarkupEditsNote);
@@ -231,6 +240,9 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         && symbol.Locations.Any(location => location.IsInSource
             && location.GetMappedLineSpan() is { HasMappedPath: true } span
             && MarkupMap.IsMarkup(span.Path));
+
+    private static IReadOnlyList<string> Skipped(int count, string name) =>
+        count > 0 ? [string.Format(SkippedNote, count, name)] : [];
 
     /// <summary>@bind pairs a parameter with its 'Changed' sibling by name alone, and only a note can say so.</summary>
     private static IReadOnlyList<string> ConventionNotes(ISymbol symbol)

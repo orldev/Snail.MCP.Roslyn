@@ -174,8 +174,12 @@ internal sealed class MarkupEdits(IPathMap paths)
         return (spans, synthesized);
     }
 
-    /// <summary>Renders one file edit per touched file, replacing the name at exactly the given positions.</summary>
-    public async Task<IReadOnlyList<FileEdit>> ComposeAsync(
+    /// <summary>One file edit per touched file, replacing the name at exactly the given positions, and the
+    /// number of positions that did not carry the name and were left alone.</summary>
+    /// <remarks>A position recovered from #line can point at a column the generator computed rather than one
+    /// the author wrote, so each is verified against the text before it is rewritten. Dropping a failed one
+    /// silently would report a partial rename as a complete one, so the count is returned and the caller says so.</remarks>
+    public async Task<(IReadOnlyList<FileEdit> Edits, int Skipped)> ComposeAsync(
         Solution solution,
         Dictionary<string, HashSet<(int Line, int Column)>> spans,
         string name,
@@ -183,18 +187,27 @@ internal sealed class MarkupEdits(IPathMap paths)
         CancellationToken cancellationToken)
     {
         List<FileEdit> edits = [];
+        var skipped = 0;
 
         foreach (var (path, positions) in spans.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             if (await TextAsync(solution, path, cancellationToken) is not { } text)
+            {
+                skipped += positions.Count;
+
                 continue;
+            }
 
             List<LineEdit> lines = [];
 
             foreach (var group in positions.GroupBy(position => position.Line).OrderBy(group => group.Key))
             {
                 if (group.Key < 1 || group.Key > text.Lines.Count)
+                {
+                    skipped += group.Count();
+
                     continue;
+                }
 
                 var was = text.Lines[group.Key - 1].ToString();
                 var now = was;
@@ -203,7 +216,11 @@ internal sealed class MarkupEdits(IPathMap paths)
                 {
                     if (column + name.Length > now.Length
                         || !string.Equals(now.Substring(column, name.Length), name, StringComparison.Ordinal))
+                    {
+                        skipped++;
+
                         continue;
+                    }
 
                     now = now.Remove(column, name.Length).Insert(column, newName);
                 }
@@ -216,7 +233,7 @@ internal sealed class MarkupEdits(IPathMap paths)
                 edits.Add(new FileEdit(paths.ToCaller(path), null, lines));
         }
 
-        return edits;
+        return (edits, skipped);
     }
 
     public static void Merge(

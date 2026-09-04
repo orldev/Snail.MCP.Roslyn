@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -129,7 +130,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         }
         else
         {
-            var remainder = root.RemoveNode(declaration, SyntaxRemoveOptions.KeepNoTrivia)?.NormalizeWhitespace().ToFullString()
+            var remainder = root.RemoveNode(declaration, SyntaxRemoveOptions.KeepNoTrivia)?.ToFullString()
                 ?? root.ToFullString();
 
             var created = DocumentId.CreateNewId(document.Project.Id);
@@ -221,7 +222,11 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         if (documentId is null || solution.GetDocument(documentId) is not { } document || document.FilePath is not { } file)
             return Empty("change_signature", query, [], "The declaring file is not part of the loaded solution.");
 
-        var updated = Reshape(declaration, change);
+        if (Reshape(declaration, change) is not { } updated)
+            return Empty("change_signature", query, [],
+                "The requested signature does not parse as C#. Write each parameter as it would appear in the "
+                + "declaration, modifiers, generic arguments and default values included.");
+
         var root = await document.GetSyntaxRootAsync(cancellationToken);
 
         if (root is null)
@@ -265,48 +270,97 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         if (kept.Count == root.Usings.Count && sorted.Select(Key).SequenceEqual(root.Usings.Select(Key), StringComparer.Ordinal))
             return null;
 
-        return root.WithUsings([.. sorted]).NormalizeWhitespace().ToFullString();
+        return Rewritten(await document.GetTextAsync(cancellationToken), root, sorted);
+    }
+
+    /// <summary>The file with its using block replaced and nothing else touched.</summary>
+    /// <remarks>Rewriting the block through the syntax tree and normalising whitespace reformats the whole
+    /// file — brace style, blank lines, alignment — so organising three directives arrives as a diff over
+    /// every line. Each directive is written back with its own trivia, so a comment above one travels with it.</remarks>
+    private static string Rewritten(SourceText text, CompilationUnitSyntax root, List<UsingDirectiveSyntax> sorted)
+    {
+        var first = root.Usings[0];
+        var (header, attached) = SplitLeading(first.GetLeadingTrivia());
+        var rebuilt = new StringBuilder(header.ToFullString());
+
+        foreach (var directive in sorted)
+        {
+            var leading = directive == first ? attached : directive.GetLeadingTrivia();
+
+            rebuilt.Append(directive.WithLeadingTrivia(leading).ToFullString());
+        }
+
+        var block = TextSpan.FromBounds(first.FullSpan.Start, root.Usings[^1].FullSpan.End);
+
+        return text.Replace(block, rebuilt.ToString()).ToString();
+    }
+
+    /// <summary>Trivia above the first directive that belongs to the file rather than to that directive:
+    /// everything up to the last blank line. A licence header lives there and must not follow its directive
+    /// down the sorted list.</summary>
+    private static (SyntaxTriviaList Header, SyntaxTriviaList Attached) SplitLeading(SyntaxTriviaList leading)
+    {
+        var split = 0;
+
+        for (var index = 1; index < leading.Count; index++)
+        {
+            if (leading[index].IsKind(SyntaxKind.EndOfLineTrivia) && leading[index - 1].IsKind(SyntaxKind.EndOfLineTrivia))
+                split = index + 1;
+        }
+
+        return (SyntaxFactory.TriviaList(leading.Take(split)), SyntaxFactory.TriviaList(leading.Skip(split)));
     }
 
     private static string Key(UsingDirectiveSyntax directive) => directive.ToString();
 
-    private static MethodDeclarationSyntax Reshape(MethodDeclarationSyntax declaration, SignatureChange change)
+    /// <summary>The declaration with the requested shape, or null when the request does not parse as C#.</summary>
+    /// <remarks>The parameter list goes through the C# parser rather than being split on spaces. Splitting
+    /// mangles every parameter whose text contains one that is not the separator: 'IDictionary&lt;string, int&gt; map'
+    /// loses half its type argument, 'ref int x' takes 'ref' for a type, and 'int x = 5' takes '5' for a name.</remarks>
+    private static MethodDeclarationSyntax? Reshape(MethodDeclarationSyntax declaration, SignatureChange change)
     {
         var updated = declaration;
 
         if (change.ReturnType is { } returnType)
-            updated = updated.WithReturnType(SyntaxFactory.ParseTypeName(returnType).WithTrailingTrivia(SyntaxFactory.Space));
+        {
+            var parsed = SyntaxFactory.ParseTypeName(returnType);
+
+            if (parsed.ContainsDiagnostics)
+                return null;
+
+            updated = updated.WithReturnType(parsed.WithTrailingTrivia(SyntaxFactory.Space));
+        }
 
         if (change.Parameters is not { } parameters)
             return updated;
 
-        var list = SyntaxFactory.ParameterList(SyntaxFactory.SeparatedList(
-            parameters.Select(parameter => SyntaxFactory.Parameter(SyntaxFactory.Identifier(Name(parameter)))
-                .WithType(SyntaxFactory.ParseTypeName(Type(parameter)).WithTrailingTrivia(SyntaxFactory.Space)))));
+        var list = SyntaxFactory.ParseParameterList($"({string.Join(", ", parameters)})");
 
-        return updated.WithParameterList(list);
+        if (list.ContainsDiagnostics)
+            return null;
+
+        return updated.WithParameterList(list.WithTrailingTrivia(declaration.ParameterList.GetTrailingTrivia()));
     }
 
-    private static string Type(string parameter) => parameter.Trim().Split(' ')[0];
-
-    private static string Name(string parameter)
-    {
-        var parts = parameter.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-        return parts.Length > 1 ? parts[^1] : "value";
-    }
-
+    /// <summary>The new file: the origin's usings, a file-scoped namespace, and the declaration exactly as
+    /// its author wrote it. Only the wrapper is synthesised, so moving a type does not reformat it.</summary>
     private static string Compose(SyntaxNode root, SyntaxNode declaration, string space)
     {
-        var usings = root is CompilationUnitSyntax unit ? unit.Usings : [];
-        var body = SyntaxFactory.FileScopedNamespaceDeclaration(SyntaxFactory.ParseName(space))
-            .WithMembers([(MemberDeclarationSyntax)declaration]);
+        var composed = new StringBuilder();
 
-        return SyntaxFactory.CompilationUnit()
-            .WithUsings(usings)
-            .WithMembers([body])
-            .NormalizeWhitespace()
-            .ToFullString();
+        if (root is CompilationUnitSyntax unit)
+        {
+            foreach (var directive in unit.Usings)
+                composed.AppendLine(directive.ToString());
+
+            if (unit.Usings.Count > 0)
+                composed.AppendLine();
+        }
+
+        composed.AppendLine($"namespace {space};").AppendLine();
+        composed.AppendLine(declaration.ToFullString().Trim('\r', '\n'));
+
+        return composed.ToString();
     }
 
     private IReadOnlyList<FileEdit> Realign(
