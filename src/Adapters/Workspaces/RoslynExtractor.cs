@@ -58,7 +58,7 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
 
         List<string> notes = [];
 
-        if (RazorMarkup.Parse(text.ToString(), path) is { } elements)
+        if (RazorMarkup.Parse(text, path) is { } elements)
         {
             if (Straddler(elements, text, request.StartLine, request.EndLine) is { } refusal)
                 return new ExtractionPlan(request.Name, null, [], null, [], [refusal]);

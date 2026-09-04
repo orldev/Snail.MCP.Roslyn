@@ -82,7 +82,7 @@ internal sealed class MarkupEdits(IPathMap paths)
             {
                 var text = await document.GetTextAsync(cancellationToken);
 
-                if (RazorMarkup.Parse(text.ToString(), document.FilePath!) is { } elements)
+                if (RazorMarkup.Parse(text, document.FilePath!) is { } elements)
                 {
                     foreach (var element in elements)
                         TagSpansOf(element, name, text, document.FilePath!, spans);

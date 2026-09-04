@@ -40,7 +40,7 @@ internal static class RenderCosts
     {
         List<string> lines = [.. text.Lines.Select(line => line.ToString())];
         var code = CodeRegions(lines);
-        var elements = RazorMarkup.Parse(text.ToString(), file);
+        var elements = RazorMarkup.Parse(text, file);
         List<CodeIssue> found = [];
 
         for (var index = 0; index < lines.Count; index++)

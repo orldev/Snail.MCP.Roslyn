@@ -26,36 +26,64 @@ internal sealed class NamespaceGraph
         return graph;
     }
 
-    /// <summary>Every cycle rendered as the path that closes it.</summary>
+    /// <summary>Every cycle, rendered as the namespaces that take part in it.</summary>
+    /// <remarks>Found as strongly connected components rather than by depth-first search with a shared visited
+    /// set: that set makes a node reachable only once, so every cycle running through a node the first descent
+    /// already settled goes unreported. A component of more than one namespace is exactly a cycle among them,
+    /// and each is reported once however many ways round it there are.</remarks>
     public IReadOnlyList<string> Cycles()
     {
         List<string> cycles = [];
-        HashSet<string> settled = new(StringComparer.Ordinal);
+        Dictionary<string, int> index = new(StringComparer.Ordinal);
+        Dictionary<string, int> low = new(StringComparer.Ordinal);
+        HashSet<string> onStack = new(StringComparer.Ordinal);
+        Stack<string> stack = new();
+        var next = 0;
 
-        foreach (var start in edges.Keys)
-            Walk(start, [], settled, cycles);
-
-        return [.. cycles.Distinct(StringComparer.Ordinal)];
-    }
-
-    private void Walk(string node, List<string> path, HashSet<string> settled, List<string> cycles)
-    {
-        if (path.Contains(node, StringComparer.Ordinal))
+        void Connect(string node)
         {
-            cycles.Add(string.Join(" -> ", path[path.IndexOf(node)..].Append(node)));
+            index[node] = low[node] = next++;
+            stack.Push(node);
+            onStack.Add(node);
 
-            return;
+            foreach (var target in edges.TryGetValue(node, out var found) ? found : [])
+            {
+                if (!index.ContainsKey(target))
+                {
+                    Connect(target);
+                    low[node] = Math.Min(low[node], low[target]);
+                }
+                else if (onStack.Contains(target))
+                {
+                    low[node] = Math.Min(low[node], index[target]);
+                }
+            }
+
+            if (low[node] != index[node])
+                return;
+
+            List<string> component = [];
+            string member;
+
+            do
+            {
+                member = stack.Pop();
+                onStack.Remove(member);
+                component.Add(member);
+            }
+            while (!string.Equals(member, node, StringComparison.Ordinal));
+
+            if (component.Count > 1)
+                cycles.Add(string.Join(" -> ", component.Order(StringComparer.Ordinal)));
         }
 
-        if (!settled.Add(node) || !edges.TryGetValue(node, out var next))
-            return;
+        foreach (var start in edges.Keys.Order(StringComparer.Ordinal))
+        {
+            if (!index.ContainsKey(start))
+                Connect(start);
+        }
 
-        path.Add(node);
-
-        foreach (var target in next)
-            Walk(target, path, settled, cycles);
-
-        path.RemoveAt(path.Count - 1);
+        return [.. cycles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
     }
 
     private async Task WalkAsync(Document document, CancellationToken cancellationToken)

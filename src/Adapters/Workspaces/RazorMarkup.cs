@@ -1,5 +1,7 @@
+using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Razor.Language;
 using Microsoft.AspNetCore.Razor.Language.Intermediate;
+using Microsoft.CodeAnalysis.Text;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
@@ -16,6 +18,8 @@ internal static class RazorMarkup
         RazorProjectFileSystem.Create("/"),
         _ => { });
 
+    private static readonly ConditionalWeakTable<SourceText, Attempt> Parsed = [];
+
     /// <summary>One attribute of an element. Text is the source it occupies, value included; for an attribute
     /// written on a continuation line that text opens with the line break, so judge position by the element.</summary>
     internal sealed record ElementAttribute(string Name, int Line, int Column, string Text);
@@ -29,7 +33,14 @@ internal static class RazorMarkup
         int Length,
         IReadOnlyList<ElementAttribute> Attributes);
 
-    public static IReadOnlyList<Element>? Parse(string text, string fileName)
+    /// <summary>Reads one markup file, once per version of its text.</summary>
+    /// <remarks>Reading a component runs this from the outline, from the render-cost scan and again from a
+    /// rename, and a Razor parse is not cheap. A SourceText is immutable, so the result keyed on it needs no
+    /// invalidation: an edit produces a new text and the old entry dies with it.</remarks>
+    public static IReadOnlyList<Element>? Parse(SourceText source, string fileName) =>
+        Parsed.GetValue(source, text => new Attempt(Read(text.ToString(), fileName))).Elements;
+
+    private static IReadOnlyList<Element>? Read(string text, string fileName)
     {
         if (!fileName.EndsWith(".razor", StringComparison.OrdinalIgnoreCase))
             return null;
@@ -42,8 +53,15 @@ internal static class RazorMarkup
                 Array.Empty<RazorSourceDocument>(),
                 Array.Empty<TagHelperDescriptor>());
 
+            var tree = document.GetDocumentIntermediateNode();
+
+            // A directive newer than this parser does not throw, it produces an error and a tree missing
+            // whatever it could not read. Handing that back as authoritative is worse than not parsing at all.
+            if (tree.GetAllDiagnostics().Any(diagnostic => diagnostic.Severity == RazorDiagnosticSeverity.Error))
+                return null;
+
             List<Element> elements = [];
-            Walk(document.GetDocumentIntermediateNode(), text, elements);
+            Walk(tree, text, elements);
 
             return elements;
         }
@@ -52,6 +70,8 @@ internal static class RazorMarkup
             return null;
         }
     }
+
+    private sealed record Attempt(IReadOnlyList<Element>? Elements);
 
     private static void Walk(IntermediateNode node, string text, List<Element> elements)
     {

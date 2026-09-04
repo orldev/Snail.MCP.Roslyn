@@ -25,9 +25,18 @@ internal sealed class TextScanner(IPathMap paths)
                 if (found.Count >= Cap)
                     return found;
 
+                var text = await document.GetTextAsync(cancellationToken);
+                var content = text.ToString();
+
+                // The root is only needed to say what kind of occurrence this is. Asking for it before knowing
+                // there is one parses every file in the solution to answer a question about a handful of them.
+                if (!content.Contains(name, StringComparison.Ordinal))
+                    continue;
+
                 Scan(
                     document.FilePath,
-                    await document.GetTextAsync(cancellationToken),
+                    text,
+                    content,
                     await document.GetSyntaxRootAsync(cancellationToken),
                     name,
                     touched,
@@ -40,7 +49,11 @@ internal sealed class TextScanner(IPathMap paths)
                 if (found.Count >= Cap)
                     return found;
 
-                Scan(document.FilePath, await document.GetTextAsync(cancellationToken), null, name, touched, seen, found);
+                var text = await document.GetTextAsync(cancellationToken);
+                var content = text.ToString();
+
+                if (content.Contains(name, StringComparison.Ordinal))
+                    Scan(document.FilePath, text, content, null, name, touched, seen, found);
             }
         }
 
@@ -79,6 +92,7 @@ internal sealed class TextScanner(IPathMap paths)
     private void Scan(
         string? path,
         SourceText text,
+        string content,
         SyntaxNode? root,
         string name,
         HashSet<string> touched,
@@ -93,7 +107,6 @@ internal sealed class TextScanner(IPathMap paths)
         if (touched.Contains(caller))
             return;
 
-        var content = text.ToString();
         var index = content.IndexOf(name, StringComparison.Ordinal);
 
         while (index >= 0 && found.Count < Cap)

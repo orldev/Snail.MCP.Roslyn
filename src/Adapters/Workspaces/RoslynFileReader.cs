@@ -192,7 +192,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
 
         HashSet<string> seen = [];
 
-        if (RazorMarkup.Parse(text.ToString(), fileName) is { } elements)
+        if (RazorMarkup.Parse(text, fileName) is { } elements)
         {
             foreach (var element in elements)
             {

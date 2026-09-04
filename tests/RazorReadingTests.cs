@@ -141,6 +141,15 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         }
         """;
 
+    private const string Modern =
+        """
+        @rendermode InteractiveServer
+
+        @* <Badge Label="ghost" Count="0" /> *@
+
+        <Badge Label="modern" Count="1" />
+        """;
+
     private readonly string folder = Directory.CreateTempSubdirectory("roslyn-razor").FullName;
 
     private readonly AnalysisFixture fixture = new();
@@ -160,6 +169,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 
         // Same leaf name in two folders: the generated hint names differ only by the directory prefix.
         var nested = Directory.CreateDirectory(Path.Combine(folder, "Components", "Pages")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(folder, "Modern.razor"), Modern);
         await File.WriteAllTextAsync(Path.Combine(folder, "Tile.razor"), RootTile);
         await File.WriteAllTextAsync(Path.Combine(nested, "Tile.razor"), NestedTile);
 
@@ -279,15 +289,15 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         var view = await fixture.Reader.ReadAsync(
             solutionId, Path.Combine(folder, "Board.razor"), 1, 2000, CancellationToken.None);
 
-        var missingKey = Assert.Single(view.Issues.Items, issue => issue.Id == "SNR001");
-        Assert.Equal(1, missingKey.Line);
+        // Asserted as one string so a failure names every issue that did come back. This test has failed
+        // intermittently and Assert.Single reports only that a count was wrong, not what was found instead.
+        var costs = string.Join(
+            ", ",
+            view.Issues.Items
+                .Where(issue => issue.Id.StartsWith("SNR", StringComparison.Ordinal))
+                .Select(issue => $"{issue.Id}@{issue.Line}"));
 
-        var loopLambda = Assert.Single(view.Issues.Items, issue => issue.Id == "SNR002");
-        Assert.Equal(3, loopLambda.Line);
-
-        var unfixedCascade = Assert.Single(view.Issues.Items, issue => issue.Id == "SNR003");
-        Assert.Equal(11, unfixedCascade.Line);
-
+        Assert.Equal("SNR001@1, SNR002@3, SNR003@11", costs);
         Assert.Contains(view.Notes, note => note.Contains("render-cost", StringComparison.Ordinal));
     }
 
@@ -435,6 +445,19 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 
         Assert.DoesNotContain(probe.Notes, note => note.Contains("cut it apart", StringComparison.Ordinal));
         Assert.Contains("LeftTitle", probe.Unresolved);
+    }
+
+    [Fact]
+    public async Task ReadAsync_MarkupWithAPostSixDirective_StillReadsElementsFromTheParser()
+    {
+        var view = await fixture.Reader.ReadAsync(
+            solutionId, Path.Combine(folder, "Modern.razor"), 1, 2000, CancellationToken.None);
+
+        var tag = Assert.Single(view.Symbols, symbol => symbol.Kind == "ComponentTag");
+
+        // Line 5, not 3: the tag inside the Razor comment is excluded, which only the element tree does.
+        // @rendermode is unknown to the 6.0 grammar but reads as an expression, so the tree survives it.
+        Assert.Equal(5, tag.Line);
     }
 
     [Fact]
