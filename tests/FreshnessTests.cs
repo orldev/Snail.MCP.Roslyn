@@ -16,7 +16,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
     [Fact]
     public async Task Diagnostics_FileAddedAfterLoading_IsAnalysedThenReleasedOnDeletion()
     {
-        var file = Path.Combine(RepositoryPaths.Source, "AppearedAfterLoading.cs");
+        var file = Leftovers.Appeared;
 
         var before = await Errors();
 

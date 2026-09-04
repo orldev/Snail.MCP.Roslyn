@@ -22,4 +22,15 @@
     <ProjectReference Include="..\src\Snail.MCP.Roslyn.csproj" />
   </ItemGroup>
 
+  <!-- A test that needs the compiler to see a file writes it into src and deletes it in a finally, which a
+       killed run never reaches. What survives does not compile, so it breaks the next build before any test
+       could clean up after itself. This runs ahead of the referenced project's compilation; the names come
+       from Support/Leftovers.cs, which builds them from this same prefix. -->
+  <Target Name="SweepLeftovers" BeforeTargets="BeforeBuild">
+    <ItemGroup>
+      <Leftover Include="$(MSBuildThisFileDirectory)../src/SuiteArtifact.*.cs" />
+    </ItemGroup>
+    <Delete Files="@(Leftover)" />
+  </Target>
+
 </Project>

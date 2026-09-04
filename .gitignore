@@ -422,3 +422,7 @@ ASALocalRun/
 
 # Local History for Visual Studio
 .localhistory/
+
+# Files the test suite writes into src while a test needs the compiler to see them.
+# Swept before every test build; ignored so a killed run can never put one in a commit.
+src/SuiteArtifact.*.cs

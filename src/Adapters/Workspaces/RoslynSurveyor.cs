@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Options;
 using Snail.MCP.Roslyn.Configuration;
 

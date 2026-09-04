@@ -36,7 +36,7 @@ public sealed class DiagnosticScopeTests(AnalysisFixture fixture)
     public async Task ReadAsync_ScopeOnlyALineDirectivePointsAt_IsNotAnsweredEmpty()
     {
         var phantom = Path.Combine(RepositoryPaths.Root, "MappedAway.Phantom.cs");
-        var file = Path.Combine(RepositoryPaths.Source, "MappedAwayFromItsFile.cs");
+        var file = Leftovers.MappedAway;
 
         try
         {

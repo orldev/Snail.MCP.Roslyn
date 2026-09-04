@@ -77,7 +77,7 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
     [Fact]
     public async Task ReadAsync_FileWithACompilerError_ReportsItAgainstTheTextItReturns()
     {
-        var file = Path.Combine(RepositoryPaths.Source, "ReadWithAnError.cs");
+        var file = Leftovers.Unreadable;
 
         try
         {
