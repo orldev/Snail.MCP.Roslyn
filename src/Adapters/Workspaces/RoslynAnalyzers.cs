@@ -37,7 +37,8 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
         string? category,
         IssueSeverity minimum,
         int limit,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IProgress<WorkStep>? progress = null)
     {
         var started = Stopwatch.GetTimestamp();
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
@@ -51,8 +52,13 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
         var blocked = false;
         var total = 0;
 
-        foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
+        List<Project> analysed = [.. solution.Projects.Where(project => project.Language == LanguageNames.CSharp)];
+        var done = 0;
+
+        foreach (var project in analysed)
         {
+            progress?.Report(new WorkStep(done++, analysed.Count, $"Analyzing {project.Name}"));
+
             var compilation = await project.GetCompilationAsync(cancellationToken);
 
             if (compilation is null)

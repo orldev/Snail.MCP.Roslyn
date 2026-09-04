@@ -3,7 +3,6 @@ namespace Snail.MCP.Roslyn.Tools.Prompts;
 /// <summary>How to work with this server, delivered once at initialize; a wire contract, edited with caution.</summary>
 public static class ServerGuidance
 {
-    // TODO: возможно сокраить
     public const string Instructions =
         """
         This server keeps a C# solution compiled in memory. Use it instead of reading files one by one,
@@ -11,6 +10,9 @@ public static class ServerGuidance
 
         Start of a C# task: call load_solution once on the .sln or .csproj, keep the returned solutionId.
         Readiness 'Degraded' means restore has not run and empty answers are unreliable — say so rather than trusting them.
+
+        Addressing a symbol: give symbolId from search_symbols, or, where the tool takes one, a bare name that
+        matches exactly one symbol, or file with line and column. Prefer the id; a bare name is a guess.
 
         To read a C# file: call read_file, not a plain file read. Same text, plus the file's diagnostics and
         every declaration with its identifier and use count; the identifier feeds find_references directly.

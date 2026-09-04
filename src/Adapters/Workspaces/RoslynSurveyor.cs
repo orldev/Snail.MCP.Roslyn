@@ -6,8 +6,11 @@ using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptions<WorkspaceOptions> options)
-    : ISolutionSurveyor
+internal sealed class RoslynSurveyor(
+    IPathMap paths,
+    SolutionCache cache,
+    ScriptTally scripts,
+    IOptions<WorkspaceOptions> options) : ISolutionSurveyor
 {
     private const string FolderRule = "folder-namespace";
 
@@ -28,7 +31,11 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
         "Hotspots are the types the rest of the solution names most often. "
         + "They are where a change costs the most, not where the code is worst.";
 
-    public async Task<SolutionOverview> OverviewAsync(string solutionId, int limit, CancellationToken cancellationToken)
+    public async Task<SolutionOverview> OverviewAsync(
+        string solutionId,
+        int limit,
+        CancellationToken cancellationToken,
+        IProgress<WorkStep>? progress = null)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
         var cap = Math.Clamp(limit, 1, options.Value.MaxFindings);
@@ -40,8 +47,13 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
         var errors = 0;
         var warnings = 0;
 
-        foreach (var project in solution.Projects.Where(IsCSharp))
+        List<Project> surveyed = [.. solution.Projects.Where(IsCSharp)];
+        var done = 0;
+
+        foreach (var project in surveyed)
         {
+            progress?.Report(new WorkStep(done++, surveyed.Count + 1, $"Compiling {project.Name}"));
+
             var compilation = await project.GetCompilationAsync(cancellationToken);
             var diagnostics = compilation?.GetDiagnostics(cancellationToken) ?? [];
             var projectErrors = diagnostics.Count(diagnostic => diagnostic.Severity == DiagnosticSeverity.Error);
@@ -66,6 +78,8 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
 
             issues.AddRange(Top(diagnostics, cap));
         }
+
+        progress?.Report(new WorkStep(done, surveyed.Count + 1, "Reading the solution as a whole"));
 
         var facts = await SolutionInsights.FactsAsync(solution, cancellationToken);
         var architecture = await FindingsAsync(solution, cap, cancellationToken);
@@ -123,16 +137,22 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
                 compilation.GetDiagnostics(cancellationToken);
         }
 
+        var working = ProcessFootprint.WorkingSetMegabytes;
+
         return new HealthReport(
             solutionId,
             Decide(projects, compiled, restored),
             projects,
             documents,
             (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
-            Environment.WorkingSet / (1024 * 1024),
+            working,
+            ProcessFootprint.ManagedHeapMegabytes,
+            ProcessFootprint.Assemblies,
+            ProcessFootprint.Foreign,
+            scripts.Ran,
             cache.Loaded,
             options.Value.AllowScripts,
-            Advice(compiled, restored));
+            Advice(compiled, restored, working, scripts.Ran, options.Value.MemoryAdviceMegabytes));
     }
 
     private static WorkspaceReadiness Decide(int projects, bool compiled, bool restored) =>
@@ -140,7 +160,12 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
         : restored ? WorkspaceReadiness.Ready
         : WorkspaceReadiness.Degraded;
 
-    private static IReadOnlyList<string> Advice(bool compiled, bool restored)
+    private static IReadOnlyList<string> Advice(
+        bool compiled,
+        bool restored,
+        long working,
+        int scripts,
+        int ceiling)
     {
         List<string> notes = [];
 
@@ -155,6 +180,19 @@ internal sealed class RoslynSurveyor(IPathMap paths, SolutionCache cache, IOptio
 
         if (notes.Count == 0)
             notes.Add("The workspace answers from the files as they are on disk right now.");
+
+        if (scripts > 0)
+            notes.Add(
+                $"{scripts} script(s) have run in this process. Each one permanently adds an assembly and some "
+                + "megabytes of process memory that no collection returns, whether or not the code repeated one "
+                + "already run. Measured on this server: about 7 MB per run.");
+
+        if (working > ceiling)
+            notes.Add(
+                $"This process holds {working} MB, past the {ceiling} MB at which restarting is worth it. "
+                + "Two of the things it holds are never given back: the assembly each run_script emits and the "
+                + "analyzer assemblies the analysed solutions brought. Neither can be unloaded, so unload_solution "
+                + "does not recover them — restart the server.");
 
         return notes;
     }

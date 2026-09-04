@@ -24,7 +24,11 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
         "Some .csproj files under this directory are not part of the loaded solution and were not analysed. "
         + "Answers cover the solution only: absence of a result there does not mean absence in the directory.";
 
-    public async Task<WorkspaceReport> LoadAsync(string path, CancellationToken cancellationToken, bool countDiagnostics = false)
+    public async Task<WorkspaceReport> LoadAsync(
+        string path,
+        CancellationToken cancellationToken,
+        bool countDiagnostics = false,
+        IProgress<WorkStep>? progress = null)
     {
         var target = paths.ToProcess(path);
         var entry = Resolve(target);
@@ -41,7 +45,7 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
 
         try
         {
-            solution = await OpenAsync(workspace, entry, cancellationToken);
+            solution = await OpenAsync(workspace, entry, progress, cancellationToken);
         }
         catch (Exception error)
         {
@@ -104,12 +108,30 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
         return null;
     }
 
-    private static async Task<Solution> OpenAsync(MSBuildWorkspace workspace, string entry, CancellationToken cancellationToken)
+    /// <summary>Opens the solution, telling the caller which project is being read as it goes.</summary>
+    /// <remarks>MSBuild reports each project three times, once per phase; only the last is passed on, so the
+    /// count is projects finished rather than phases run. How many there will be is not known until the
+    /// solution file has been read, so no total is claimed.</remarks>
+    private static async Task<Solution> OpenAsync(
+        MSBuildWorkspace workspace,
+        string entry,
+        IProgress<WorkStep>? progress,
+        CancellationToken cancellationToken)
     {
-        if (Path.GetExtension(entry) is ".sln" or ".slnx" or ".slnf")
-            return await workspace.OpenSolutionAsync(entry, cancellationToken: cancellationToken);
+        var opened = 0;
 
-        var project = await workspace.OpenProjectAsync(entry, cancellationToken: cancellationToken);
+        var reader = progress is null
+            ? null
+            : new Progress<ProjectLoadProgress>(loaded =>
+            {
+                if (loaded.Operation == ProjectLoadOperation.Resolve)
+                    progress.Report(new WorkStep(++opened, null, $"Read {Path.GetFileName(loaded.FilePath)}"));
+            });
+
+        if (Path.GetExtension(entry) is ".sln" or ".slnx" or ".slnf")
+            return await workspace.OpenSolutionAsync(entry, reader, cancellationToken);
+
+        var project = await workspace.OpenProjectAsync(entry, reader, cancellationToken);
 
         return project.Solution;
     }

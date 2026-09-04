@@ -10,7 +10,7 @@ public sealed class ScriptTools(IScriptRunner scripts)
     [McpServerTool(Name = "run_script")]
     [Description(ToolDescriptions.RunScript)]
     public Task<ScriptResult> RunScript(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("C# script body; its last expression is the returned value.")]
         string code,

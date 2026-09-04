@@ -34,6 +34,11 @@ internal static class AnalyzerGuard
         return solutionRoot is not null && Under(full, solutionRoot);
     }
 
+    /// <summary>True when the assembly at this path came with .NET or with this server, rather than with a
+    /// solution it was asked to analyse.</summary>
+    public static bool ShipsWithTheServer(string path) =>
+        Under(path, AppContext.BaseDirectory) || DotnetRoots.Any(root => Under(path, root));
+
     /// <summary>The installation behind every SDK MSBuild knows about, and this process's own as a fallback for
     /// when MSBuild was never located.</summary>
     private static IReadOnlyList<string> Installed()

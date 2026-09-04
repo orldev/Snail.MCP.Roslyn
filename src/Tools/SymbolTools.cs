@@ -14,7 +14,7 @@ public sealed class SymbolTools(
     [McpServerTool(Name = "search_symbols")]
     [Description(ToolDescriptions.SearchSymbols)]
     public Task<IReadOnlyList<SymbolMatch>> SearchSymbols(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Part of the symbol name; matching ignores case.")]
         string query,
@@ -28,48 +28,48 @@ public sealed class SymbolTools(
     [McpServerTool(Name = "get_symbol_info")]
     [Description(ToolDescriptions.GetSymbolInfo)]
     public Task<SymbolDetails?> GetSymbolInfo(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0) =>
         symbols.DescribeAsync(solutionId, new SymbolQuery(symbolId, null, file, line, column), cancellationToken);
 
     [McpServerTool(Name = "get_symbol_source")]
     [Description(ToolDescriptions.GetSymbolSource)]
     public Task<SymbolSource?> GetSymbolSource(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0) =>
         symbols.ReadAsync(solutionId, new SymbolQuery(symbolId, null, file, line, column), cancellationToken);
 
     [McpServerTool(Name = "find_references")]
     [Description(ToolDescriptions.FindReferences)]
     public Task<ReferencePage> FindReferences(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0,
         [Description("Maximum references to return.")]
         int limit = 100) =>
@@ -78,18 +78,18 @@ public sealed class SymbolTools(
     [McpServerTool(Name = "find_implementations")]
     [Description(ToolDescriptions.FindImplementations)]
     public Task<IReadOnlyList<SymbolMatch>> FindImplementations(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this, a bare name, or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Bare symbol name; used only when it matches exactly one symbol.")]
+        [Description(ParameterDescriptions.SymbolName)]
         string? name = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0,
         [Description("Maximum results to return.")]
         int limit = 50) =>
@@ -98,18 +98,18 @@ public sealed class SymbolTools(
     [McpServerTool(Name = "find_callers")]
     [Description(ToolDescriptions.FindCallers)]
     public Task<IReadOnlyList<SymbolMatch>> FindCallers(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this, a bare name, or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Bare symbol name; used only when it matches exactly one symbol.")]
+        [Description(ParameterDescriptions.SymbolName)]
         string? name = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0,
         [Description("Maximum results to return.")]
         int limit = 50) =>
@@ -118,25 +118,25 @@ public sealed class SymbolTools(
     [McpServerTool(Name = "get_type_hierarchy")]
     [Description(ToolDescriptions.GetTypeHierarchy)]
     public Task<TypeHierarchy?> GetTypeHierarchy(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this, a bare name, or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Bare type name; used only when it matches exactly one type.")]
+        [Description(ParameterDescriptions.TypeName)]
         string? name = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0) =>
         hierarchy.HierarchyAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), cancellationToken);
 
     [McpServerTool(Name = "get_generated_code")]
     [Description(ToolDescriptions.GetGeneratedCode)]
     public Task<GeneratedCodePage> GetGeneratedCode(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
         [Description("Project name or part of it; the first C# project when omitted.")]

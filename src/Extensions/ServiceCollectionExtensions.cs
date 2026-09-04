@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
             services.Configure<WorkspaceOptions>(configuration.GetSection(WorkspaceOptions.Section));
             services.AddSingleton<IPathMap, RootPathMap>();
             services.AddSingleton<SolutionCache>();
+            services.AddSingleton<ScriptTally>();
             services.AddSingleton<ISolutionHost, RoslynSolutionHost>();
             services.AddSingleton<IDiagnosticReader, RoslynDiagnostics>();
             services.AddSingleton<ISymbolLookup, RoslynSymbols>();
@@ -43,6 +44,7 @@ public static class ServiceCollectionExtensions
             services.AddMcpServer(server => server.ServerInstructions = ServerGuidance.Instructions)
                 .WithStdioServerTransport()
                 .ExplainFailures()
+                .BoundAnswers()
                 .WithTools<SolutionTools>()
                 .WithTools<SymbolTools>()
                 .WithTools<RefactorTools>()

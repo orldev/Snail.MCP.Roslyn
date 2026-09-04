@@ -4,10 +4,13 @@ using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using Microsoft.Extensions.Options;
+using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDiagnosticReader diagnostics) : IFileReader
+internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IOptions<WorkspaceOptions> options)
+    : IFileReader
 {
     private const int IssueCap = 20;
 
@@ -74,18 +77,16 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
         var documentId = solution.GetDocumentIdsWithFilePath(path).FirstOrDefault();
 
         if (documentId is not null && solution.GetDocument(documentId) is { } document)
-            return await SourceViewAsync(solution, solutionId, file, document, startLine, maxLines, cancellationToken);
+            return await SourceViewAsync(solution, document, startLine, maxLines, cancellationToken);
 
         if (Documents.FindMarkup(solution, path) is { } markup)
-            return await MarkupViewAsync(solution, solutionId, file, markup, startLine, maxLines, cancellationToken);
+            return await MarkupViewAsync(solution, markup, startLine, maxLines, cancellationToken);
 
         return await FromDiskAsync(path, startLine, maxLines, cancellationToken);
     }
 
     private async Task<FileView> SourceViewAsync(
         Solution solution,
-        string solutionId,
-        string file,
         Document document,
         int startLine,
         int maxLines,
@@ -100,7 +101,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
             start,
             end,
             rendered,
-            await diagnostics.ReadAsync(solutionId, file, IssueSeverity.Warning, IssueCap, false, cancellationToken),
+            await IssuesAsync(solution, document.FilePath!, cancellationToken),
             await OutlineAsync(document, solution, cancellationToken),
             [],
             Notes(solution));
@@ -109,8 +110,6 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
     /// <summary>A .razor or .cshtml file of the solution: text, mapped diagnostics, @code members, tags and directives.</summary>
     private async Task<FileView> MarkupViewAsync(
         Solution solution,
-        string solutionId,
-        string file,
         TextDocument markup,
         int startLine,
         int maxLines,
@@ -140,7 +139,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
         if (generated is null)
             notes.Insert(0, NoGeneratorNote);
 
-        var compiled = await diagnostics.ReadAsync(solutionId, file, IssueSeverity.Warning, IssueCap, false, cancellationToken);
+        var compiled = await IssuesAsync(solution, markup.FilePath!, cancellationToken);
         var costs = RenderCosts.Scan(text, paths.ToCaller(markup.FilePath!));
 
         if (costs.Count > 0)
@@ -157,6 +156,18 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
             DirectivesIn(text),
             notes);
     }
+
+    /// <summary>What the compiler says about this one file, read from the snapshot the rest of the answer was
+    /// built from and asking only the projects that hold it.</summary>
+    private Task<IssuePage> IssuesAsync(Solution solution, string path, CancellationToken cancellationToken) =>
+        CompilerIssues.CollectAsync(
+            solution,
+            paths,
+            path,
+            IssueSeverity.Warning,
+            Math.Clamp(IssueCap, 1, options.Value.MaxIssues),
+            false,
+            cancellationToken);
 
     /// <summary>The component type and the @code declarations that map back into the authored file.</summary>
     private async Task AuthoredMembersAsync(

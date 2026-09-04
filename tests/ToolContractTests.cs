@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Reflection;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Roslyn.Tools;
 using Snail.MCP.Roslyn.Tools.Prompts;
@@ -55,11 +56,17 @@ public sealed class ToolContractTests
     {
         Assert.All(Tools, tool =>
             Assert.All(
-                tool.GetParameters().Where(parameter => parameter.ParameterType != typeof(CancellationToken)),
+                tool.GetParameters().Where(Asked),
                 parameter => Assert.False(
                     string.IsNullOrWhiteSpace(parameter.GetCustomAttribute<DescriptionAttribute>()?.Description),
                     $"{tool.Name}.{parameter.Name} has no description")));
     }
+
+    /// <summary>Parameters the caller fills in. The cancellation token and the progress sink are supplied by
+    /// the server, never appear in the schema, and so have nobody to describe themselves to.</summary>
+    private static bool Asked(ParameterInfo parameter) =>
+        parameter.ParameterType != typeof(CancellationToken)
+        && parameter.ParameterType != typeof(IProgress<ProgressNotificationValue>);
 
     [Fact]
     public void RefactorToolDescriptions_EveryTool_PromiseNeverWrites()

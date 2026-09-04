@@ -5,6 +5,9 @@ namespace Snail.MCP.Roslyn.Tests;
 
 public sealed class StdioContractTests
 {
+    /// <summary>Bytes the tool catalogue may occupy, a little above what it occupies now.</summary>
+    private const int Ceiling = 28_500;
+
     [Fact]
     public async Task StandardOutput_AfterInitialize_CarriesOnlyJsonRpcMessages()
     {
@@ -79,6 +82,22 @@ public sealed class StdioContractTests
         Assert.All(
             tools.EnumerateArray(),
             tool => Assert.False(string.IsNullOrWhiteSpace(tool.GetProperty("description").GetString())));
+
+        // The progress sink is a parameter of the method, not of the tool: the caller asks for notifications
+        // with a progressToken, and a schema property named after it would be a second, wrong way to ask.
+        Assert.All(
+            tools.EnumerateArray(),
+            tool => Assert.DoesNotContain(
+                "progress",
+                tool.GetProperty("inputSchema").GetRawText(),
+                StringComparison.OrdinalIgnoreCase));
+
+        // The catalogue is not sent once: the client carries it in every request it makes, so its size is a
+        // standing charge on the caller's context. A tool or a sentence added here is paid for all day.
+        Assert.True(
+            tools.GetRawText().Length < Ceiling,
+            $"The tool catalogue is {tools.GetRawText().Length} bytes against a ceiling of {Ceiling}. Shorten what was "
+            + "added, or raise the ceiling deliberately and say what the caller gets for the context it costs.");
     }
 
     [Fact]
@@ -115,6 +134,79 @@ public sealed class StdioContractTests
         Assert.Contains(nameof(InvalidOperationException), logged, StringComparison.Ordinal);
     }
 
+    /// <summary>The budget is set below any real answer, so the smallest successful call is over it.</summary>
+    [Fact]
+    public async Task CallTool_AnswerOverTheResponseBudget_IsRefusedWithItsSize()
+    {
+        using var server = Start(("Workspace__MaxResponseChars", "200"));
+
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"contract","version":"0"}}}
+            """);
+        await server.StandardInput.WriteLineAsync("""{"jsonrpc":"2.0","method":"notifications/initialized"}""");
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"load_solution","arguments":{"path":"ROOT"}}}
+            """.Replace("ROOT", RepositoryPaths.Root.Replace("\\", "\\\\", StringComparison.Ordinal), StringComparison.Ordinal));
+        await server.StandardInput.FlushAsync(CancellationToken.None);
+
+        var answer = await ReadUntilAsync(server, 2);
+
+        server.StandardInput.Close();
+        await server.WaitForExitAsync(CancellationToken.None);
+
+        Assert.NotNull(answer);
+
+        var result = answer!.RootElement.GetProperty("result");
+        var text = result.GetProperty("content")[0].GetProperty("text").GetString() ?? string.Empty;
+
+        Assert.True(result.GetProperty("isError").GetBoolean(), text);
+        Assert.Contains("against a budget of 200", text, StringComparison.Ordinal);
+        Assert.Contains("load_solution", text, StringComparison.Ordinal);
+    }
+
+    /// <summary>Loading a solution takes seconds, and a caller that hears nothing cannot tell it from a hang.</summary>
+    [Fact]
+    public async Task CallTool_LoadingASolutionWithAProgressToken_ReportsEachProjectAsItIsRead()
+    {
+        using var server = Start();
+
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"contract","version":"0"}}}
+            """);
+        await server.StandardInput.WriteLineAsync("""{"jsonrpc":"2.0","method":"notifications/initialized"}""");
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"_meta":{"progressToken":"load"},"name":"load_solution","arguments":{"path":"ROOT"}}}
+            """.Replace("ROOT", RepositoryPaths.Root.Replace("\\", "\\\\", StringComparison.Ordinal), StringComparison.Ordinal));
+        await server.StandardInput.FlushAsync(CancellationToken.None);
+
+        List<string> reported = [];
+
+        while (await server.StandardOutput.ReadLineAsync(CancellationToken.None) is { } line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var message = JsonDocument.Parse(line).RootElement;
+
+            if (message.TryGetProperty("method", out var method)
+                && method.GetString() == "notifications/progress"
+                && message.GetProperty("params").TryGetProperty("message", out var what))
+                reported.Add(what.GetString() ?? string.Empty);
+
+            if (message.TryGetProperty("id", out var id) && id.GetInt32() == 2)
+                break;
+        }
+
+        server.StandardInput.Close();
+        await server.WaitForExitAsync(CancellationToken.None);
+
+        Assert.Contains(reported, step => step.Contains("Snail.MCP.Roslyn.csproj", StringComparison.Ordinal));
+    }
+
     private static async Task<JsonDocument?> ReadUntilAsync(Process server, int id)
     {
         while (await server.StandardOutput.ReadLineAsync(CancellationToken.None) is { } line)
@@ -131,19 +223,24 @@ public sealed class StdioContractTests
         return null;
     }
 
-    private static Process Start()
+    private static Process Start(params (string Name, string Value)[] environment)
     {
         var server = Path.Combine(
             RepositoryPaths.Root, "src", "bin", Configuration(), "net10.0", "Snail.MCP.Roslyn.dll");
 
         Assert.True(File.Exists(server), $"Build the server before running this test: {server}");
 
-        return Process.Start(new ProcessStartInfo("dotnet", server)
+        var start = new ProcessStartInfo("dotnet", server)
         {
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true
-        })!;
+        };
+
+        foreach (var (name, value) in environment)
+            start.Environment[name] = value;
+
+        return Process.Start(start)!;
     }
 
     private static string Configuration() =>

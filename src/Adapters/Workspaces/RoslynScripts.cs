@@ -9,7 +9,8 @@ using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-internal sealed class RoslynScripts(SolutionCache cache, IOptions<WorkspaceOptions> options) : IScriptRunner
+internal sealed class RoslynScripts(SolutionCache cache, ScriptTally tally, IOptions<WorkspaceOptions> options)
+    : IScriptRunner
 {
     private const string DisabledNote =
         "Scripting is switched off for this server. Set Workspace:AllowScripts to enable it. "
@@ -50,6 +51,11 @@ internal sealed class RoslynScripts(SolutionCache cache, IOptions<WorkspaceOptio
 
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
         var context = await ScriptContext.CreateAsync(solution, cancellationToken);
+
+        // Counted before the run, not after: what the process will never give back is the assembly the
+        // compilation emits, and it is emitted whether the script then succeeds, throws or runs away.
+        tally.Counted();
+
         var started = Stopwatch.GetTimestamp();
         var seconds = options.Value.ScriptTimeoutSeconds;
 

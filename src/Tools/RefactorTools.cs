@@ -10,7 +10,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
     [McpServerTool(Name = "extract_component")]
     [Description(ToolDescriptions.ExtractComponent)]
     public Task<ExtractionPlan> ExtractComponent(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Absolute path of the .razor file to extract from.")]
         string file,
@@ -37,20 +37,20 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
     [McpServerTool(Name = "rename_symbol")]
     [Description(ToolDescriptions.RenameSymbol)]
     public Task<RenamePlan> RenameSymbol(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("New name for the symbol.")]
         string newName,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Prefer this over name.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
         [Description("Bare symbol name; used only when it matches exactly one symbol, otherwise candidates come back.")]
         string? name = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0,
         [Description("Rename every overload of the method, not just this one.")]
         bool renameOverloads = true,
@@ -70,7 +70,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
     [McpServerTool(Name = "rename_namespace")]
     [Description(ToolDescriptions.RenameNamespace)]
     public Task<EditPlan> RenameNamespace(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Namespace as it is written today, fully qualified.")]
         string oldNamespace,
@@ -84,18 +84,18 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
     [McpServerTool(Name = "move_type")]
     [Description(ToolDescriptions.MoveType)]
     public Task<EditPlan> MoveType(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this, a bare name, or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Bare type name; used only when it matches exactly one type.")]
+        [Description(ParameterDescriptions.TypeName)]
         string? name = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0,
         [Description("Absolute path of the file the type should live in; a sibling file named after the type when omitted.")]
         string? targetFile = null,
@@ -111,7 +111,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
     [McpServerTool(Name = "organize_usings")]
     [Description(ToolDescriptions.OrganizeUsings)]
     public Task<EditPlan> OrganizeUsings(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
         [Description("Optional absolute file or directory path that narrows the work.")]
@@ -121,18 +121,18 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
     [McpServerTool(Name = "change_signature")]
     [Description(ToolDescriptions.ChangeSignature)]
     public Task<EditPlan> ChangeSignature(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this, a bare name, or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
         [Description("Bare method name; used only when it matches exactly one method.")]
         string? name = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0,
         [Description("Parameters the method should take, each written as 'Type name'; unchanged when omitted.")]
         string[]? parameters = null,

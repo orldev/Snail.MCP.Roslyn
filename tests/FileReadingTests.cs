@@ -3,6 +3,16 @@ namespace Snail.MCP.Roslyn.Tests;
 [Collection(nameof(AnalysisCollection))]
 public sealed class FileReadingTests(AnalysisFixture fixture)
 {
+    private const string Broken =
+        """
+        namespace Snail.MCP.Roslyn;
+
+        internal sealed class ReadWithAnError
+        {
+            public int Broken() => undefinedName;
+        }
+        """;
+
     [Fact]
     public async Task ReadAsync_SourceFileOfSolution_ReturnsWholeNumberedTextWithoutIssues()
     {
@@ -62,6 +72,30 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
         Assert.Empty(view.Symbols);
         Assert.Empty(view.Issues.Items);
         Assert.Contains(view.Notes, note => note.Contains("not a C# document", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ReadAsync_FileWithACompilerError_ReportsItAgainstTheTextItReturns()
+    {
+        var file = Path.Combine(RepositoryPaths.Source, "ReadWithAnError.cs");
+
+        try
+        {
+            await File.WriteAllTextAsync(file, Broken, CancellationToken.None);
+
+            var view = await fixture.Reader.ReadAsync(fixture.SolutionId, file, 1, 2000, CancellationToken.None);
+
+            var error = Assert.Single(view.Issues.Items, issue => issue.Id == "CS0103");
+
+            Assert.Equal(file, error.File);
+
+            // The issue's line has to index the text this very answer returned; they come from one snapshot.
+            Assert.Contains("undefinedName", view.Text.Split('\n')[error.Line - 1], StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
     }
 
     [Fact]

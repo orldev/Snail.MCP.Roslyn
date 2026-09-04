@@ -9,7 +9,8 @@ public interface IAnalyzerRunner
         string? category,
         IssueSeverity minimum,
         int limit,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        IProgress<WorkStep>? progress = null);
 
     Task<CodeFixPage> FixesAsync(
         string solutionId,

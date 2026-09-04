@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Roslyn.Tools.Prompts;
 
@@ -10,18 +11,18 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
     [McpServerTool(Name = "analyze_change_impact")]
     [Description(ToolDescriptions.AnalyzeChangeImpact)]
     public Task<ImpactReport> AnalyzeChangeImpact(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
-        [Description("Symbol id from search_symbols. Give this, a bare name, or a file position.")]
+        [Description(ParameterDescriptions.SymbolId)]
         string? symbolId = null,
-        [Description("Bare symbol name; used only when it matches exactly one symbol.")]
+        [Description(ParameterDescriptions.SymbolName)]
         string? name = null,
-        [Description("Absolute file path, when addressing by position.")]
+        [Description(ParameterDescriptions.File)]
         string? file = null,
-        [Description("One-based line, when addressing by position.")]
+        [Description(ParameterDescriptions.Line)]
         int line = 0,
-        [Description("One-based column, when addressing by position.")]
+        [Description(ParameterDescriptions.Column)]
         int column = 0,
         [Description("Maximum entries per section of the answer.")]
         int limit = 50) =>
@@ -30,9 +31,10 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
     [McpServerTool(Name = "run_analyzers")]
     [Description(ToolDescriptions.RunAnalyzers)]
     public Task<AnalyzerPage> RunAnalyzers(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
+        IProgress<ProgressNotificationValue> progress,
         [Description("Optional absolute file or directory path that narrows the results.")]
         string? scope = null,
         [Description("Analyzer category to keep, such as Performance, Design, Reliability or Usage.")]
@@ -41,12 +43,12 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         IssueSeverity minimum = IssueSeverity.Info,
         [Description("Maximum findings to return.")]
         int limit = 50) =>
-        analyzers.RunAsync(solutionId, scope, category, minimum, limit, cancellationToken);
+        analyzers.RunAsync(solutionId, scope, category, minimum, limit, cancellationToken, new ToolProgress(progress));
 
     [McpServerTool(Name = "get_code_fixes")]
     [Description(ToolDescriptions.GetCodeFixes)]
     public Task<CodeFixPage> GetCodeFixes(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Absolute path of the file the diagnostic points at.")]
         string file,
@@ -60,7 +62,7 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
     [McpServerTool(Name = "validate")]
     [Description(ToolDescriptions.Validate)]
     public Task<ValidationResult> Validate(
-        [Description("Solution id returned by load_solution.")]
+        [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Absolute path the contents are meant for; the file need not exist yet.")]
         string file,

@@ -11,6 +11,10 @@ public sealed class WorkspaceOptions
 
     public int MaxFindings { get; init; } = 200;
 
+    /// <summary>How large a single answer may be, serialised. A client that cannot fit one cuts it, and a cut
+    /// answer is unreadable JSON; the ceiling is below the size at which that was seen to happen.</summary>
+    public int MaxResponseChars { get; init; } = 50_000;
+
     /// <summary>Scripts run in this process; the container, or the absence of one, is the only boundary.</summary>
     public bool AllowScripts { get; init; } = true;
 
@@ -18,6 +22,10 @@ public sealed class WorkspaceOptions
     public string AnalyzerPolicy { get; init; } = "default";
 
     public int ScriptTimeoutSeconds { get; init; } = 30;
+
+    /// <summary>Working set past which health_check advises a restart. Script and analyzer assemblies are never
+    /// unloaded, so beyond some point only a new process gives the memory back.</summary>
+    public int MemoryAdviceMegabytes { get; init; } = 2048;
 
     /// <summary>How many solutions stay loaded at once. Each holds its own compilations, so the ceiling is on
     /// memory; the one used longest ago is dropped and has to be loaded again.</summary>
