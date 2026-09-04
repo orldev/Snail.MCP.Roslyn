@@ -169,7 +169,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
         if (SourcePaths.IsUnderOutput(file) && !markup.TryGetValue(file, out file))
             return false;
 
-        return filter is null || file.StartsWith(filter, StringComparison.Ordinal);
+        return filter is null || SourcePaths.IsUnder(file, filter);
     }
 
     /// <summary>An attributed symbol is normally spared — frameworks reach it reflectively — except when every

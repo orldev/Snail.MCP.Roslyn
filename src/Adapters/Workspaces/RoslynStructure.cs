@@ -179,7 +179,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
                 if (document.FilePath is not { } file || SourcePaths.IsUnderOutput(file))
                     continue;
 
-                if (filter is not null && !file.StartsWith(filter, StringComparison.Ordinal))
+                if (filter is not null && !SourcePaths.IsUnder(file, filter))
                     continue;
 
                 if (await OrganizeAsync(document, file, unnecessary, cancellationToken) is not { } organized)
@@ -324,7 +324,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
 
             var prefix = string.IsNullOrWhiteSpace(project.DefaultNamespace) ? project.Name : project.DefaultNamespace;
 
-            if (!oldNamespace.StartsWith(prefix, StringComparison.Ordinal) || !newNamespace.StartsWith(prefix, StringComparison.Ordinal))
+            if (!Namespaced(oldNamespace, prefix) || !Namespaced(newNamespace, prefix))
                 continue;
 
             var from = Path.Combine([root, .. Segments(oldNamespace, prefix)]);
@@ -351,6 +351,11 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
 
         return aligned;
     }
+
+    /// <summary>True when the namespace is the prefix or sits under it. 'Snail.Domain' must not swallow
+    /// 'Snail.DomainModel', which a bare prefix test would.</summary>
+    private static bool Namespaced(string space, string prefix) =>
+        space.Equals(prefix, StringComparison.Ordinal) || space.StartsWith($"{prefix}.", StringComparison.Ordinal);
 
     private static string[] Segments(string space, string prefix) =>
         space[prefix.Length..].Trim('.').Split('.', StringSplitOptions.RemoveEmptyEntries);

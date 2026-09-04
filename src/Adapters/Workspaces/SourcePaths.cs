@@ -19,6 +19,24 @@ internal static class SourcePaths
         file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
         || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
 
-    public static bool Covers(string filter, string? file) =>
-        file is not null && file.StartsWith(filter, StringComparison.Ordinal);
+    public static bool Covers(string filter, string? file) => IsUnder(file, filter);
+
+    /// <summary>True when the path is the root itself or lies inside it.</summary>
+    /// <remarks>A bare prefix test also matches a sibling whose name merely begins the same way — /src/Foo
+    /// would cover /src/FooBar, and ~/.nuget/packages would cover ~/.nuget/packages-anything, which is the
+    /// difference between trusting an analyzer assembly and running arbitrary code from an unexpected place.</remarks>
+    public static bool IsUnder(string? path, string? root)
+    {
+        if (path is null || string.IsNullOrEmpty(root))
+            return false;
+
+        var comparison = OperatingSystem.IsLinux() ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+
+        if (path.Equals(root, comparison))
+            return true;
+
+        var bounded = root[^1] is '/' or '\\' ? root : root + Path.DirectorySeparatorChar;
+
+        return path.StartsWith(bounded, comparison);
+    }
 }

@@ -104,6 +104,6 @@ internal sealed class RoslynValidator(IPathMap paths, SolutionCache cache) : ICo
     private static Project? Nearest(Solution solution, string path) =>
         solution.Projects
             .Where(project => project.Language == LanguageNames.CSharp && project.FilePath is not null)
-            .Where(project => path.StartsWith(Path.GetDirectoryName(project.FilePath!)!, StringComparison.Ordinal))
+            .Where(project => SourcePaths.IsUnder(path, Path.GetDirectoryName(project.FilePath!)))
             .MaxBy(project => Path.GetDirectoryName(project.FilePath!)!.Length);
 }

@@ -8,41 +8,73 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 /// <summary>Holds loaded solutions and brings them level with the files on disk before every answer.</summary>
 internal sealed class SolutionCache : IDisposable
 {
+    /// <summary>macOS and Windows both hand back paths whose case need not match MSBuild's.</summary>
+    private static readonly StringComparer PathComparer =
+        OperatingSystem.IsLinux() ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
+
+    private static readonly string[] SourcePatterns = ["*.cs", "*.razor", "*.cshtml"];
+
+    private static readonly string[] SkippedFolders = ["obj", "bin", ".git", ".vs", "node_modules"];
+
+    private static readonly EnumerationOptions Shallow = new() { IgnoreInaccessible = true };
+
     private readonly ConcurrentDictionary<string, Entry> entries = new(StringComparer.Ordinal);
 
     public void Store(string id, MSBuildWorkspace workspace, Solution solution, string entryPath)
     {
         if (entries.TryRemove(id, out var previous))
-            previous.Dispose();
+            previous.Retire();
 
-        entries[id] = new Entry(workspace, solution, entryPath);
+        entries[id] = Adopt(workspace, solution, entryPath);
     }
 
+    /// <summary>The solution level with the files on disk. Callers may run concurrently, so the whole
+    /// stale-check-and-refresh runs under the entry's gate: it mutates the entry's stamps and exclusions,
+    /// and two callers racing there corrupt a Dictionary rather than merely losing an update.</summary>
     public async Task<Solution> FreshAsync(string id, CancellationToken cancellationToken)
     {
         if (!entries.TryGetValue(id, out var entry))
             throw new InvalidOperationException($"Solution '{id}' is not loaded. Call load_solution first.");
 
-        if (Restructured(entry.Solution))
-            return await ReopenAsync(id, entry, cancellationToken);
+        await entry.EnterAsync(cancellationToken);
 
-        var solution = entry.Solution;
-
-        foreach (var document in solution.Projects.SelectMany(project => project.Documents))
+        try
         {
-            if (await ReadChangedAsync(entry, document, cancellationToken) is { } text)
-                solution = solution.WithDocumentText(document.Id, text);
-        }
+            if (Restructured(entry))
+                return await ReopenAsync(id, entry, cancellationToken);
 
-        foreach (var document in solution.Projects.SelectMany(project => project.AdditionalDocuments))
+            var solution = entry.Solution;
+
+            foreach (var document in solution.Projects.SelectMany(project => project.Documents))
+            {
+                if (await ReadChangedAsync(entry, document, cancellationToken) is { } text)
+                    solution = solution.WithDocumentText(document.Id, text);
+            }
+
+            foreach (var document in solution.Projects.SelectMany(project => project.AdditionalDocuments))
+            {
+                if (await ReadChangedAsync(entry, document, cancellationToken) is { } text)
+                    solution = solution.WithAdditionalDocumentText(document.Id, text);
+            }
+
+            entry.Solution = solution;
+
+            return solution;
+        }
+        finally
         {
-            if (await ReadChangedAsync(entry, document, cancellationToken) is { } text)
-                solution = solution.WithAdditionalDocumentText(document.Id, text);
+            entry.Exit();
         }
+    }
 
-        entry.Solution = solution;
+    private static Entry Adopt(MSBuildWorkspace workspace, Solution solution, string entryPath)
+    {
+        var entry = new Entry(workspace, solution, entryPath);
 
-        return solution;
+        // Whatever is on disk at open time and is still not a document is excluded by the project itself.
+        entry.Excluded.UnionWith(OnDiskOnly(solution));
+
+        return entry;
     }
 
     private static async Task<SourceText?> ReadChangedAsync(
@@ -58,9 +90,12 @@ internal sealed class SolutionCache : IDisposable
         if (entry.Stamps.TryGetValue(document.Id, out var known) && known == stamp)
             return null;
 
+        var text = SourceText.From(await File.ReadAllTextAsync(path, cancellationToken));
+
+        // Stamped only once the read succeeded: a cancelled read must not mark the file as seen.
         entry.Stamps[document.Id] = stamp;
 
-        return SourceText.From(await File.ReadAllTextAsync(path, cancellationToken));
+        return text;
     }
 
     public bool Remove(string id)
@@ -68,7 +103,7 @@ internal sealed class SolutionCache : IDisposable
         if (!entries.TryRemove(id, out var entry))
             return false;
 
-        entry.Dispose();
+        entry.Retire();
 
         return true;
     }
@@ -76,11 +111,13 @@ internal sealed class SolutionCache : IDisposable
     public void Dispose()
     {
         foreach (var entry in entries.Values)
-            entry.Dispose();
+            entry.Retire();
 
         entries.Clear();
     }
 
+    /// <summary>Replaces the entry in place. The stale workspace is disposed directly rather than retired:
+    /// this runs holding its gate, so no other caller can be inside it and waiting for the gate would deadlock.</summary>
     private async Task<Solution> ReopenAsync(string id, Entry stale, CancellationToken cancellationToken)
     {
         var workspace = MSBuildWorkspace.Create();
@@ -89,48 +126,145 @@ internal sealed class SolutionCache : IDisposable
             ? await workspace.OpenSolutionAsync(stale.EntryPath, cancellationToken: cancellationToken)
             : (await workspace.OpenProjectAsync(stale.EntryPath, cancellationToken: cancellationToken)).Solution;
 
-        Store(id, workspace, solution, stale.EntryPath);
+        entries[id] = Adopt(workspace, solution, stale.EntryPath);
+        stale.Dispose();
 
         return solution;
     }
 
-    /// <summary>True when a source or markup file appeared or vanished, which text replacement alone cannot absorb.</summary>
-    private static bool Restructured(Solution solution)
+    /// <summary>True when a file the solution should contain appeared or vanished, which text replacement alone
+    /// cannot absorb.</summary>
+    /// <remarks>A file the project excludes — a Compile Remove, a nested project outside the solution, a scratch
+    /// file — sits on disk forever and is not a document, so a plain "on disk but not a document" test reopens the
+    /// whole solution through MSBuild on every single call. Once a reopen has declined to adopt a path, it is
+    /// recorded as excluded and never asked about again, until a project file changes and the answer may differ.</remarks>
+    private static bool Restructured(Entry entry)
     {
-        HashSet<string> known =
-        [
-            .. solution.Projects.SelectMany(project => project.Documents).Select(document => document.FilePath).OfType<string>(),
-            .. solution.Projects.SelectMany(project => project.AdditionalDocuments)
-                .Select(document => document.FilePath)
-                .Where(MarkupMap.IsMarkup)
-                .OfType<string>()
-        ];
+        if (ProjectFilesChanged(entry))
+            return true;
 
-        foreach (var project in solution.Projects)
+        var known = Contained(entry.Solution);
+
+        foreach (var candidate in SourceFilesUnder(entry.Solution))
         {
-            if (project.FilePath is not { } file || Path.GetDirectoryName(file) is not { } root)
-                continue;
-
-            foreach (var pattern in (string[])["*.cs", "*.razor", "*.cshtml"])
-            {
-                foreach (var candidate in Directory.EnumerateFiles(root, pattern, SearchOption.AllDirectories))
-                {
-                    if (!SourcePaths.IsUnderOutput(candidate) && !known.Contains(candidate))
-                        return true;
-                }
-            }
+            if (!known.Contains(candidate) && !entry.Excluded.Contains(candidate))
+                return true;
         }
 
         return known.Any(path => !File.Exists(path));
     }
 
+    /// <summary>A changed project file can add or drop source files wholesale, so the exclusions it justified
+    /// no longer hold and the workspace has to be built again.</summary>
+    private static bool ProjectFilesChanged(Entry entry)
+    {
+        var changed = false;
+
+        foreach (var project in entry.Solution.Projects)
+        {
+            if (project.FilePath is not { } file || !File.Exists(file))
+                continue;
+
+            var stamp = File.GetLastWriteTimeUtc(file);
+
+            if (entry.ProjectStamps.TryGetValue(file, out var known) && known == stamp)
+                continue;
+
+            entry.ProjectStamps[file] = stamp;
+            changed |= known != default;
+        }
+
+        return changed;
+    }
+
+    private static IEnumerable<string> OnDiskOnly(Solution solution)
+    {
+        var known = Contained(solution);
+
+        return SourceFilesUnder(solution).Where(candidate => !known.Contains(candidate));
+    }
+
+    private static HashSet<string> Contained(Solution solution) =>
+    [
+        .. solution.Projects.SelectMany(project => project.Documents).Select(document => document.FilePath).OfType<string>(),
+        .. solution.Projects.SelectMany(project => project.AdditionalDocuments)
+            .Select(document => document.FilePath)
+            .Where(MarkupMap.IsMarkup)
+            .OfType<string>()
+    ];
+
+    /// <summary>Source files under every project root, each root visited once however many target frameworks
+    /// share it, and without descending into build output.</summary>
+    private static IEnumerable<string> SourceFilesUnder(Solution solution)
+    {
+        HashSet<string> roots = new(PathComparer);
+
+        foreach (var project in solution.Projects)
+        {
+            if (project.FilePath is { } file && Path.GetDirectoryName(file) is { } root)
+                roots.Add(root);
+        }
+
+        return roots.SelectMany(SourceFilesIn);
+    }
+
+    private static IEnumerable<string> SourceFilesIn(string root)
+    {
+        Stack<string> pending = new();
+        pending.Push(root);
+
+        while (pending.Count > 0)
+        {
+            var folder = pending.Pop();
+
+            foreach (var child in Directory.EnumerateDirectories(folder, "*", Shallow))
+            {
+                if (!SkippedFolders.Contains(Path.GetFileName(child), StringComparer.OrdinalIgnoreCase))
+                    pending.Push(child);
+            }
+
+            foreach (var pattern in SourcePatterns)
+            {
+                foreach (var file in Directory.EnumerateFiles(folder, pattern, Shallow))
+                    yield return file;
+            }
+        }
+    }
+
     private sealed class Entry(MSBuildWorkspace workspace, Solution solution, string entryPath) : IDisposable
     {
+        private readonly SemaphoreSlim gate = new(1, 1);
+
         public Solution Solution { get; set; } = solution;
 
         public string EntryPath { get; } = entryPath;
 
         public Dictionary<DocumentId, DateTime> Stamps { get; } = Snapshot(solution);
+
+        /// <summary>Paths a reopen refused to adopt, so they stop being a reason to reopen.</summary>
+        public HashSet<string> Excluded { get; } = new(PathComparer);
+
+        public Dictionary<string, DateTime> ProjectStamps { get; } = new(PathComparer);
+
+        public Task EnterAsync(CancellationToken cancellationToken) => gate.WaitAsync(cancellationToken);
+
+        public void Exit() => gate.Release();
+
+        /// <summary>Releases the workspace once whoever is inside the entry has left, so an unload or a reload
+        /// cannot pull the compilations out from under a request already reading them.</summary>
+        public void Retire()
+        {
+            gate.Wait();
+
+            try
+            {
+                workspace.Dispose();
+            }
+            finally
+            {
+                gate.Release();
+            }
+        }
 
         public void Dispose() => workspace.Dispose();
 

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Snail.MCP.Roslyn.Adapters.Workspaces;
 using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Paths;
@@ -25,7 +26,7 @@ internal sealed class RootPathMap(IOptions<WorkspaceOptions> options) : IPathMap
             var from = forward ? root.Key : root.Value;
             var to = forward ? root.Value : root.Key;
 
-            if (!full.StartsWith(from, StringComparison.Ordinal))
+            if (!SourcePaths.IsUnder(full, from))
                 continue;
 
             return Path.Combine(to, Path.GetRelativePath(from, full));

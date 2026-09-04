@@ -28,6 +28,5 @@ internal static class AnalyzerGuard
         return solutionRoot is not null && Under(full, solutionRoot);
     }
 
-    private static bool Under(string path, string root) =>
-        path.StartsWith(root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    private static bool Under(string path, string root) => SourcePaths.IsUnder(path, root);
 }
