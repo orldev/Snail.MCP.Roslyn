@@ -32,8 +32,7 @@ internal sealed class MarkupEdits(IPathMap paths)
         if (!map.TryGetValue(generated, out var authored))
             return null;
 
-        var project = solution.Projects.FirstOrDefault(candidate => candidate.AdditionalDocuments.Any(document =>
-            string.Equals(document.FilePath, authored, StringComparison.OrdinalIgnoreCase)));
+        var project = Documents.FindMarkup(solution, authored)?.Project;
 
         return project is null ? null : (project, authored);
     }
@@ -258,17 +257,8 @@ internal sealed class MarkupEdits(IPathMap paths)
 
     private static async Task<SourceText?> TextAsync(Solution solution, string path, CancellationToken cancellationToken)
     {
-        foreach (var project in solution.Projects)
-        {
-            TextDocument? document =
-                project.Documents.FirstOrDefault(candidate =>
-                    string.Equals(candidate.FilePath, path, StringComparison.OrdinalIgnoreCase))
-                ?? project.AdditionalDocuments.FirstOrDefault(candidate =>
-                    string.Equals(candidate.FilePath, path, StringComparison.OrdinalIgnoreCase));
-
-            if (document is not null)
-                return await document.GetTextAsync(cancellationToken);
-        }
+        if (Documents.Find(solution, path) is { } document)
+            return await document.GetTextAsync(cancellationToken);
 
         return File.Exists(path) ? SourceText.From(await File.ReadAllTextAsync(path, cancellationToken)) : null;
     }

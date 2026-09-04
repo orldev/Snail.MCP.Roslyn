@@ -5,21 +5,36 @@ using Microsoft.CodeAnalysis.FindSymbols;
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
 /// <summary>What a script sees: the loaded solution and the few helpers that save it from boilerplate.</summary>
-public sealed class ScriptContext(Solution solution)
+public sealed class ScriptContext
 {
     private readonly StringBuilder output = new();
 
-    public Solution Solution { get; } = solution;
+    private ScriptContext(Solution solution, IReadOnlyList<Compilation> compilations)
+    {
+        Solution = solution;
+        Compilations = compilations;
+    }
+
+    public Solution Solution { get; }
 
     public string Output => output.ToString();
 
-    public IReadOnlyList<Compilation> Compilations { get; } =
-    [
-        .. solution.Projects
-            .Where(project => project.Language == LanguageNames.CSharp)
-            .Select(project => project.GetCompilationAsync().GetAwaiter().GetResult())
-            .OfType<Compilation>()
-    ];
+    public IReadOnlyList<Compilation> Compilations { get; }
+
+    /// <summary>Builds the context, awaiting the compilations rather than blocking a request thread on them.
+    /// They are cached on the snapshot, so a script pays for them only when nothing else has yet.</summary>
+    public static async Task<ScriptContext> CreateAsync(Solution solution, CancellationToken cancellationToken)
+    {
+        List<Compilation> compilations = [];
+
+        foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
+        {
+            if (await project.GetCompilationAsync(cancellationToken) is { } compilation)
+                compilations.Add(compilation);
+        }
+
+        return new ScriptContext(solution, compilations);
+    }
 
     public void Print(object? value) => output.AppendLine(Render(value));
 

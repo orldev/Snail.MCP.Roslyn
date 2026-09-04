@@ -21,7 +21,8 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
         + "Their findings are suggestions from a general rule set, not the project's own standard.";
 
     private const string BlockedNote =
-        "Some analyzer assemblies were not run: they live outside the package cache, the SDK and the solution, "
+        "Some analyzer assemblies were not run: they live outside the package cache, the .NET installation and "
+        + "the solution, "
         + "and an analyzer is arbitrary code executed in this process. Set Workspace:AnalyzerPolicy to 'all' to run them anyway.";
 
     private const string FixNote =

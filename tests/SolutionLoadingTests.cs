@@ -47,8 +47,8 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
             await File.WriteAllTextAsync(Path.Combine(folder, "Tiny.cs"), "namespace Tiny; public sealed class Thing;");
 
             var report = await fixture.Host.LoadAsync(folder, CancellationToken.None);
-            var unloaded = fixture.Host.Unload(report.Id);
-            var again = fixture.Host.Unload(report.Id);
+            var unloaded = await fixture.Host.UnloadAsync(report.Id, CancellationToken.None);
+            var again = await fixture.Host.UnloadAsync(report.Id, CancellationToken.None);
 
             Assert.True(unloaded.Unloaded);
             Assert.False(again.Unloaded);

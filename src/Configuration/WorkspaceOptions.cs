@@ -14,7 +14,7 @@ public sealed class WorkspaceOptions
     /// <summary>Scripts run in this process; the container, or the absence of one, is the only boundary.</summary>
     public bool AllowScripts { get; init; } = true;
 
-    /// <summary>Where analyzer assemblies may be loaded from: 'strict' (package cache and SDK only), 'default' (plus the solution's own bin), or 'all'.</summary>
+    /// <summary>Where analyzer assemblies may be loaded from: 'strict' (package cache and the .NET installation only), 'default' (plus the solution's own bin), or 'all'.</summary>
     public string AnalyzerPolicy { get; init; } = "default";
 
     public int ScriptTimeoutSeconds { get; init; } = 30;

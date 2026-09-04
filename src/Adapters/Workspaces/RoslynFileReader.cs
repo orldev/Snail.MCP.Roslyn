@@ -67,7 +67,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
         if (documentId is not null && solution.GetDocument(documentId) is { } document)
             return await SourceViewAsync(solution, solutionId, file, document, startLine, maxLines, cancellationToken);
 
-        if (MarkupMap.IsMarkup(path) && FindMarkup(solution, path) is { } markup)
+        if (Documents.FindMarkup(solution, path) is { } markup)
             return await MarkupViewAsync(solution, solutionId, file, markup, startLine, maxLines, cancellationToken);
 
         return await FromDiskAsync(path, startLine, maxLines, cancellationToken);
@@ -145,11 +145,6 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
             DirectivesIn(text),
             notes);
     }
-
-    private static TextDocument? FindMarkup(Solution solution, string path) =>
-        solution.Projects
-            .SelectMany(project => project.AdditionalDocuments)
-            .FirstOrDefault(document => string.Equals(document.FilePath, path, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The component type and the @code declarations that map back into the authored file.</summary>
     private async Task AuthoredMembersAsync(

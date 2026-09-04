@@ -48,7 +48,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         {
             var textual = await scanner.UnhandledAsync(solution, oldParts[^1], [], cancellationToken);
 
-            return new EditPlan("rename_namespace", oldNamespace, [], textual, [], [], [DepthNote]);
+            return new EditPlan("rename_namespace", oldNamespace, [], [], textual, [], [], [DepthNote]);
         }
 
         var current = solution;
@@ -77,6 +77,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             "rename_namespace",
             oldNamespace,
             edits,
+            [],
             unhandled,
             await SolutionEdits.ConflictsAsync(solution, current, cancellationToken),
             [],
@@ -117,29 +118,36 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             ? Path.Combine(Path.GetDirectoryName(origin)!, $"{type.Name}.cs")
             : paths.ToProcess(targetFile);
 
+        var text = await document.GetTextAsync(cancellationToken);
+        var space = targetNamespace ?? type.ContainingNamespace.ToDisplayString();
         var alone = root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>().Count() == 1;
-        var moved = Compose(root, declaration, targetNamespace ?? type.ContainingNamespace.ToDisplayString());
 
         List<FileEdit> edits = [];
+        List<BlockReplacement> replacements = [];
         var after = solution;
 
         if (alone)
         {
-            after = solution.WithDocumentText(documentId, SourceText.From(moved));
-            edits.Add(new FileEdit(paths.ToCaller(origin), paths.ToCaller(destination), [], moved));
+            // The file holds nothing but this type, so moving it is a rename; only a changed namespace edits it.
+            if (Renamespaced(text, root, space) is { } line)
+            {
+                after = solution.WithDocumentText(documentId, line.Rewritten);
+                replacements.Add(line.Replacement with { File = paths.ToCaller(origin) });
+            }
+
+            edits.Add(new FileEdit(paths.ToCaller(origin), paths.ToCaller(destination), []));
         }
         else
         {
-            var remainder = root.RemoveNode(declaration, SyntaxRemoveOptions.KeepNoTrivia)?.ToFullString()
-                ?? root.ToFullString();
-
+            var (removal, remainder) = Removed(text, declaration);
+            var moved = Compose(root, declaration, space);
             var created = DocumentId.CreateNewId(document.Project.Id);
 
             after = solution
-                .WithDocumentText(documentId, SourceText.From(remainder))
+                .WithDocumentText(documentId, remainder)
                 .AddDocument(created, Path.GetFileName(destination), SourceText.From(moved), filePath: destination);
 
-            edits.Add(new FileEdit(paths.ToCaller(origin), null, [], remainder));
+            replacements.Add(removal with { File = paths.ToCaller(origin) });
             edits.Add(new FileEdit(paths.ToCaller(destination), null, [], moved));
         }
 
@@ -147,10 +155,45 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             "move_type",
             type.Name,
             edits,
+            replacements,
             [],
             await SolutionEdits.ConflictsAsync(solution, after, cancellationToken),
             [],
             ["The type keeps its name, so references stay valid unless the namespace changed. Build once after applying."]);
+    }
+
+    /// <summary>The declaration cut out of its file, stated as the lines it occupies, its documentation comment
+    /// and attributes included.</summary>
+    private static (BlockReplacement Removal, SourceText Remainder) Removed(SourceText text, SyntaxNode declaration)
+    {
+        var first = text.Lines.GetLineFromPosition(declaration.FullSpan.Start);
+        var last = text.Lines.GetLineFromPosition(declaration.Span.End);
+        var region = TextSpan.FromBounds(first.Start, Math.Min(last.EndIncludingLineBreak, text.Length));
+
+        return (new BlockReplacement(string.Empty, first.LineNumber + 1, last.LineNumber + 1, string.Empty),
+            text.Replace(region, string.Empty));
+    }
+
+    /// <summary>The namespace line rewritten, or null when the namespace does not change.</summary>
+    private static (BlockReplacement Replacement, SourceText Rewritten)? Renamespaced(
+        SourceText text,
+        SyntaxNode root,
+        string space)
+    {
+        if (root.DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>().FirstOrDefault() is not { } declared
+            || string.Equals(declared.Name.ToString(), space, StringComparison.Ordinal))
+            return null;
+
+        var name = declared.Name.Span;
+        var line = text.Lines.GetLineFromPosition(name.Start);
+
+        var written = text.ToString(TextSpan.FromBounds(line.Start, name.Start))
+            + space
+            + text.ToString(TextSpan.FromBounds(name.End, line.End));
+
+        return (
+            new BlockReplacement(string.Empty, line.LineNumber + 1, line.LineNumber + 1, written),
+            text.Replace(name, space));
     }
 
     public async Task<EditPlan> OrganizeUsingsAsync(string solutionId, string? scope, CancellationToken cancellationToken)
@@ -159,7 +202,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         var filter = string.IsNullOrWhiteSpace(scope) ? null : paths.ToProcess(scope);
         var after = solution;
 
-        List<FileEdit> edits = [];
+        List<BlockReplacement> replacements = [];
 
         foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
         {
@@ -186,15 +229,16 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
                 if (await OrganizeAsync(document, file, unnecessary, cancellationToken) is not { } organized)
                     continue;
 
-                after = after.WithDocumentText(document.Id, SourceText.From(organized));
-                edits.Add(new FileEdit(paths.ToCaller(file), null, [], organized));
+                after = after.WithDocumentText(document.Id, organized.Rewritten);
+                replacements.Add(organized.Replacement);
             }
         }
 
         return new EditPlan(
             "organize_usings",
             scope ?? "solution",
-            edits,
+            [],
+            replacements,
             [],
             await SolutionEdits.ConflictsAsync(solution, after, cancellationToken),
             [],
@@ -227,25 +271,43 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
                 "The requested signature does not parse as C#. Write each parameter as it would appear in the "
                 + "declaration, modifiers, generic arguments and default values included.");
 
-        var root = await document.GetSyntaxRootAsync(cancellationToken);
-
-        if (root is null)
-            return Empty("change_signature", query, [], "The declaring file has no syntax tree.");
-
-        var text = root.ReplaceNode(declaration, updated).ToFullString();
-        var after = solution.WithDocumentText(documentId, SourceText.From(text));
+        var source = await document.GetTextAsync(cancellationToken);
+        var (replacement, rewritten) = Reshaped(source, file, declaration, updated);
+        var after = solution.WithDocumentText(documentId, rewritten);
 
         return new EditPlan(
             "change_signature",
             method.Name,
-            [new FileEdit(paths.ToCaller(file), null, [], text)],
+            [],
+            [replacement],
             [],
             await SolutionEdits.ConflictsAsync(solution, after, cancellationToken),
             [],
             [SignatureNote]);
     }
 
-    private static async Task<string?> OrganizeAsync(
+    /// <summary>The signature rewritten in place: everything from the first modifier through the closing
+    /// parenthesis, and not one line of the body, which the change does not touch.</summary>
+    private (BlockReplacement Replacement, SourceText Rewritten) Reshaped(
+        SourceText source,
+        string file,
+        MethodDeclarationSyntax declaration,
+        MethodDeclarationSyntax updated)
+    {
+        var region = TextSpan.FromBounds(declaration.Span.Start, declaration.ParameterList.Span.End);
+        var origin = updated.FullSpan.Start;
+        var header = updated.ToFullString()[(updated.Span.Start - origin)..(updated.ParameterList.Span.End - origin)];
+
+        var first = source.Lines.GetLineFromPosition(region.Start);
+        var last = source.Lines.GetLineFromPosition(region.End);
+        var indent = source.ToString(TextSpan.FromBounds(first.Start, region.Start));
+
+        return (
+            new BlockReplacement(paths.ToCaller(file), first.LineNumber + 1, last.LineNumber + 1, indent + header),
+            source.Replace(region, header));
+    }
+
+    private async Task<(BlockReplacement Replacement, SourceText Rewritten)?> OrganizeAsync(
         Document document,
         string file,
         HashSet<string> unnecessary,
@@ -270,14 +332,18 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         if (kept.Count == root.Usings.Count && sorted.Select(Key).SequenceEqual(root.Usings.Select(Key), StringComparer.Ordinal))
             return null;
 
-        return Rewritten(await document.GetTextAsync(cancellationToken), root, sorted);
+        return Rewritten(await document.GetTextAsync(cancellationToken), file, root, sorted);
     }
 
-    /// <summary>The file with its using block replaced and nothing else touched.</summary>
+    /// <summary>The using block rewritten, stated as the lines it occupies and nothing below them.</summary>
     /// <remarks>Rewriting the block through the syntax tree and normalising whitespace reformats the whole
     /// file — brace style, blank lines, alignment — so organising three directives arrives as a diff over
     /// every line. Each directive is written back with its own trivia, so a comment above one travels with it.</remarks>
-    private static string Rewritten(SourceText text, CompilationUnitSyntax root, List<UsingDirectiveSyntax> sorted)
+    private (BlockReplacement Replacement, SourceText Rewritten) Rewritten(
+        SourceText text,
+        string file,
+        CompilationUnitSyntax root,
+        List<UsingDirectiveSyntax> sorted)
     {
         var first = root.Usings[0];
         var (header, attached) = SplitLeading(first.GetLeadingTrivia());
@@ -290,9 +356,17 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             rebuilt.Append(directive.WithLeadingTrivia(leading).ToFullString());
         }
 
-        var block = TextSpan.FromBounds(first.FullSpan.Start, root.Usings[^1].FullSpan.End);
+        // Ends at the last semicolon, not past its newline: the blank line under the block belongs to the file.
+        var block = TextSpan.FromBounds(first.FullSpan.Start, root.Usings[^1].Span.End);
+        var written = rebuilt.ToString().TrimEnd('\r', '\n');
 
-        return text.Replace(block, rebuilt.ToString()).ToString();
+        return (
+            new BlockReplacement(
+                paths.ToCaller(file),
+                text.Lines.GetLineFromPosition(block.Start).LineNumber + 1,
+                text.Lines.GetLineFromPosition(block.End).LineNumber + 1,
+                written),
+            text.Replace(block, written));
     }
 
     /// <summary>Trivia above the first directive that belongs to the file rather than to that directive:
@@ -460,7 +534,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         SymbolQuery query,
         IReadOnlyList<SymbolMatch> candidates,
         string? note = null) =>
-        new(operation, query.Id ?? query.Name ?? string.Empty, [], [], [], candidates,
+        new(operation, query.Id ?? query.Name ?? string.Empty, [], [], [], [], candidates,
             [note ?? (candidates.Count > 1
                 ? "The name matches more than one symbol; pick one from candidates and call again by id."
                 : "Symbol not found. Use search_symbols first.")]);

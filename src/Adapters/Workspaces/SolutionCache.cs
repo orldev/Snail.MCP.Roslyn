@@ -16,10 +16,6 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options) : IDispo
 
     private static readonly string[] SourcePatterns = ["*.cs", "*.razor", "*.cshtml"];
 
-    private static readonly string[] SkippedFolders = ["obj", "bin", ".git", ".vs", "node_modules"];
-
-    private static readonly EnumerationOptions Shallow = new() { IgnoreInaccessible = true };
-
     private readonly ConcurrentDictionary<string, Entry> entries = new(StringComparer.Ordinal);
 
     /// <summary>Ids dropped to stay within the ceiling, so a call carrying one is told what happened to it
@@ -28,20 +24,25 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options) : IDispo
 
     public int Loaded => entries.Count;
 
-    public void Store(string id, MSBuildWorkspace workspace, Solution solution, string entryPath)
+    public async Task StoreAsync(
+        string id,
+        MSBuildWorkspace workspace,
+        Solution solution,
+        string entryPath,
+        CancellationToken cancellationToken)
     {
         if (entries.TryRemove(id, out var previous))
-            previous.Retire();
+            await previous.RetireAsync(cancellationToken);
 
         dropped.TryRemove(id, out _);
         entries[id] = Adopt(workspace, solution, entryPath);
 
-        Evict();
+        await EvictAsync(cancellationToken);
     }
 
     /// <summary>Drops the solutions used longest ago once there are more than the ceiling allows. Each one holds
     /// its own compilations, so an unbounded cache grows until the process is killed.</summary>
-    private void Evict()
+    private async Task EvictAsync(CancellationToken cancellationToken)
     {
         var ceiling = Math.Max(1, options.Value.MaxSolutions);
 
@@ -53,7 +54,8 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options) : IDispo
                 continue;
 
             dropped[stale.Key] = 0;
-            evicted.Retire();
+
+            await evicted.RetireAsync(cancellationToken);
         }
     }
 
@@ -133,20 +135,21 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options) : IDispo
         return text;
     }
 
-    public bool Remove(string id)
+    public async Task<bool> RemoveAsync(string id, CancellationToken cancellationToken)
     {
         if (!entries.TryRemove(id, out var entry))
             return false;
 
-        entry.Retire();
+        await entry.RetireAsync(cancellationToken);
 
         return true;
     }
 
+    /// <summary>Shutdown, where nobody is left to wait for: the workspaces go directly, without their gates.</summary>
     public void Dispose()
     {
         foreach (var entry in entries.Values)
-            entry.Retire();
+            entry.Dispose();
 
         entries.Clear();
     }
@@ -240,30 +243,7 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options) : IDispo
                 roots.Add(root);
         }
 
-        return roots.SelectMany(SourceFilesIn);
-    }
-
-    private static IEnumerable<string> SourceFilesIn(string root)
-    {
-        Stack<string> pending = new();
-        pending.Push(root);
-
-        while (pending.Count > 0)
-        {
-            var folder = pending.Pop();
-
-            foreach (var child in Directory.EnumerateDirectories(folder, "*", Shallow))
-            {
-                if (!SkippedFolders.Contains(Path.GetFileName(child), StringComparer.OrdinalIgnoreCase))
-                    pending.Push(child);
-            }
-
-            foreach (var pattern in SourcePatterns)
-            {
-                foreach (var file in Directory.EnumerateFiles(folder, pattern, Shallow))
-                    yield return file;
-            }
-        }
+        return roots.SelectMany(root => FileTree.Files(root, SourcePatterns));
     }
 
     private sealed class Entry(MSBuildWorkspace workspace, Solution solution, string entryPath) : IDisposable
@@ -289,9 +269,11 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options) : IDispo
 
         /// <summary>Releases the workspace once whoever is inside the entry has left, so an unload or a reload
         /// cannot pull the compilations out from under a request already reading them.</summary>
-        public void Retire()
+        /// <remarks>Awaited rather than waited on: this runs while loading a solution and while evicting one, and
+        /// blocking a request thread until an unrelated request finishes is how a server runs out of them.</remarks>
+        public async Task RetireAsync(CancellationToken cancellationToken)
         {
-            gate.Wait();
+            await gate.WaitAsync(cancellationToken);
 
             try
             {

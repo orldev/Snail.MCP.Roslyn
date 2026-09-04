@@ -77,8 +77,9 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
 
     [McpServerTool(Name = "unload_solution")]
     [Description(ToolDescriptions.UnloadSolution)]
-    public UnloadReport UnloadSolution(
+    public Task<UnloadReport> UnloadSolution(
         [Description("Solution id returned by load_solution.")]
-        string solutionId) =>
-        host.Unload(solutionId);
+        string solutionId,
+        CancellationToken cancellationToken) =>
+        host.UnloadAsync(solutionId, cancellationToken);
 }

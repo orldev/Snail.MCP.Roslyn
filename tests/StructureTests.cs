@@ -58,7 +58,7 @@ public sealed class StructureTests(AnalysisFixture fixture)
             new SignatureChange(["string processPath", "bool strict"], null),
             CancellationToken.None);
 
-        Assert.NotEmpty(plan.Edits);
+        Assert.NotEmpty(plan.Replacements);
         Assert.NotEmpty(plan.Conflicts);
         Assert.Contains(plan.Notes, note => note.Contains("work list", StringComparison.Ordinal));
     }
@@ -69,18 +69,54 @@ public sealed class StructureTests(AnalysisFixture fixture)
         var plan = await fixture.Structure.OrganizeUsingsAsync(
             fixture.SolutionId, RepositoryPaths.Source, CancellationToken.None);
 
-        Assert.NotEmpty(plan.Edits);
-        Assert.All(plan.Edits, edit =>
+        Assert.NotEmpty(plan.Replacements);
+        Assert.All(plan.Replacements, replacement =>
         {
-            var before = File.ReadAllLines(Path.Combine(RepositoryPaths.Root, edit.File));
-            var after = edit.Content!.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
+            var before = File.ReadAllLines(Path.Combine(RepositoryPaths.Root, replacement.File));
+            var after = Apply(before, replacement);
 
             var tail = before.SkipWhile(line => !line.StartsWith("namespace", StringComparison.Ordinal));
             var rewritten = after.SkipWhile(line => !line.StartsWith("namespace", StringComparison.Ordinal));
 
-            Assert.Equal(tail, rewritten.Take(tail.Count()));
+            Assert.Equal(tail, rewritten);
         });
     }
+
+    /// <summary>A plan the caller cannot afford is a plan it never receives: the whole file came back once and
+    /// the client rejected the answer on its token limit.</summary>
+    [Fact]
+    public async Task StructurePlans_AnyOperation_CarryNoFileTheCallerAlreadyHas()
+    {
+        var organize = await fixture.Structure.OrganizeUsingsAsync(
+            fixture.SolutionId, RepositoryPaths.Source, CancellationToken.None);
+
+        var signature = await fixture.Structure.ChangeSignatureAsync(
+            fixture.SolutionId,
+            await fixture.MemberAsync(nameof(IPathMap.ToCaller), nameof(IPathMap)),
+            new SignatureChange(["string processPath", "bool strict"], null),
+            CancellationToken.None);
+
+        var move = await fixture.Structure.MoveTypeAsync(
+            fixture.SolutionId,
+            new SymbolQuery(null, nameof(LineEdit), null, 0, 0),
+            Path.Combine(RepositoryPaths.Source, "Domain", "Edits", "LineEdit.cs"),
+            null,
+            CancellationToken.None);
+
+        foreach (var plan in new[] { organize, signature, move })
+        {
+            Assert.All(plan.Edits, edit => Assert.True(
+                edit.Content is null || !File.Exists(Path.Combine(RepositoryPaths.Root, edit.File)),
+                $"{plan.Operation} returned the whole content of {edit.File}, which the caller can already read."));
+        }
+    }
+
+    private static string[] Apply(string[] before, BlockReplacement replacement) =>
+    [
+        .. before.Take(replacement.StartLine - 1),
+        .. replacement.Text.Split('\n').Select(line => line.TrimEnd('\r')),
+        .. before.Skip(replacement.EndLine)
+    ];
 
     [Theory]
     [InlineData("IDictionary<string, int> map", "IDictionary<string, int> map")]
@@ -97,9 +133,9 @@ public sealed class StructureTests(AnalysisFixture fixture)
             new SignatureChange([parameter], null),
             CancellationToken.None);
 
-        var edit = Assert.Single(plan.Edits);
+        var replacement = Assert.Single(plan.Replacements);
 
-        Assert.Contains(expected, edit.Content);
+        Assert.Contains(expected, replacement.Text, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -111,7 +147,7 @@ public sealed class StructureTests(AnalysisFixture fixture)
             new SignatureChange(["int ("], null),
             CancellationToken.None);
 
-        Assert.Empty(plan.Edits);
+        Assert.Empty(plan.Replacements);
         Assert.Contains(plan.Notes, note => note.Contains("does not parse", StringComparison.Ordinal));
     }
 }

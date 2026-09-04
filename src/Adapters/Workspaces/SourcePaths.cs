@@ -15,9 +15,27 @@ internal static class SourcePaths
     public static bool IsActionable(string? file) =>
         !string.IsNullOrEmpty(file) && Path.IsPathRooted(file) && !IsUnderOutput(file);
 
-    public static bool IsUnderOutput(string file) =>
-        file.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
-        || file.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal);
+    public static bool IsUnderOutput(string file) => Buried(file, "obj") || Buried(file, "bin");
+
+    /// <summary>True when a folder of this name lies on the path with at least one more folder below it, which is
+    /// the shape build output has: obj/Debug/net10.0/x.g.cs, bin/Debug/net10.0/x.dll.</summary>
+    /// <remarks>A folder of the same name holding sources directly is the author's. The SDK excludes only the one
+    /// at the project's own root and compiles everything under any other, so calling Features/bin/Item.cs build
+    /// output hides the compiler's own errors about a file the caller wrote and has to fix.</remarks>
+    private static bool Buried(string file, string folder)
+    {
+        var marker = $"{Path.DirectorySeparatorChar}{folder}{Path.DirectorySeparatorChar}";
+
+        for (var index = file.IndexOf(marker, StringComparison.Ordinal);
+             index >= 0;
+             index = file.IndexOf(marker, index + marker.Length, StringComparison.Ordinal))
+        {
+            if (file.IndexOf(Path.DirectorySeparatorChar, index + marker.Length) >= 0)
+                return true;
+        }
+
+        return false;
+    }
 
     public static bool Covers(string filter, string? file) => IsUnder(file, filter);
 

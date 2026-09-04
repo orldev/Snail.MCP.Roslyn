@@ -28,9 +28,12 @@ internal sealed class SymbolResolver(IPathMap paths)
         if (!query.HasName)
             return (await ResolveAsync(solution, query, cancellationToken), []);
 
+        // By name rather than by predicate: the predicate overload asks every declaration in the solution, the
+        // name overload asks the index Roslyn already keeps.
         var found = await SymbolFinder.FindSourceDeclarationsAsync(
             solution,
-            name => name.Equals(query.Name, StringComparison.Ordinal),
+            query.Name!,
+            ignoreCase: false,
             SymbolFilter.TypeAndMember,
             cancellationToken);
 

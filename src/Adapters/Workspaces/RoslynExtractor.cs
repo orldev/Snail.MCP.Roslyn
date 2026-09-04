@@ -42,11 +42,7 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
         var path = paths.ToProcess(request.File);
 
-        var markup = solution.Projects
-                .SelectMany(project => project.AdditionalDocuments)
-                .FirstOrDefault(document =>
-                    MarkupMap.IsMarkup(document.FilePath)
-                    && string.Equals(document.FilePath, path, StringComparison.OrdinalIgnoreCase))
+        var markup = Documents.FindMarkup(solution, path)
             ?? throw new InvalidOperationException(
                 $"'{request.File}' is not a markup file of the loaded solution, so there is nothing to extract from.");
 

@@ -57,7 +57,7 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
         var unrestored = ProjectRestore.Missing(solution);
         var readiness = Decide(projects, compiled, unrestored.Count == 0);
 
-        cache.Store(Identify(entry), workspace, solution, entry);
+        await cache.StoreAsync(Identify(entry), workspace, solution, entry, cancellationToken);
 
         return new WorkspaceReport(
             Identify(entry),
@@ -71,9 +71,9 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
             Summarize(notes, readiness, unloaded.Count, unrestored));
     }
 
-    public UnloadReport Unload(string solutionId)
+    public async Task<UnloadReport> UnloadAsync(string solutionId, CancellationToken cancellationToken)
     {
-        var removed = cache.Remove(solutionId);
+        var removed = await cache.RemoveAsync(solutionId, cancellationToken);
 
         return new UnloadReport(
             solutionId,
@@ -222,8 +222,8 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
 
         return
         [
-            .. Directory.EnumerateFiles(root, "*.csproj", SearchOption.AllDirectories)
-                .Where(file => !known.Contains(file) && !SourcePaths.IsUnderOutput(file))
+            .. FileTree.Files(root, "*.csproj")
+                .Where(file => !known.Contains(file))
                 .Select(paths.ToCaller)
                 .Order(StringComparer.Ordinal)
         ];

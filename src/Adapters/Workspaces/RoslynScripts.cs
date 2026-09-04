@@ -15,6 +15,11 @@ internal sealed class RoslynScripts(SolutionCache cache, IOptions<WorkspaceOptio
         "Scripting is switched off for this server. Set Workspace:AllowScripts to enable it. "
         + "A script runs in this process with this process's rights: the container, or its absence, is the only boundary.";
 
+    private const string RunawayNote =
+        "It is still running in this process and cannot be stopped from inside it: a script that never awaits and "
+        + "never checks the cancellation token owns its thread until it returns. Nothing else was affected, but its "
+        + "CPU is not released. Restart the server if the process stays busy.";
+
     private const string ScopeNote =
         "The script saw the solution as it stands on disk right now. It cannot write to the code: "
         + "the workspace is a snapshot in memory, and changes to it are discarded when the script ends.";
@@ -44,33 +49,60 @@ internal sealed class RoslynScripts(SolutionCache cache, IOptions<WorkspaceOptio
             return new ScriptResult(false, null, string.Empty, ["Scripting is disabled."], 0, [DisabledNote]);
 
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var context = new ScriptContext(solution);
+        var context = await ScriptContext.CreateAsync(solution, cancellationToken);
         var started = Stopwatch.GetTimestamp();
+        var seconds = options.Value.ScriptTimeoutSeconds;
 
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(TimeSpan.FromSeconds(options.Value.ScriptTimeoutSeconds));
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(seconds));
 
         try
         {
-            var value = await CSharpScript.EvaluateAsync<object?>(code, Options, context, typeof(ScriptContext), deadline.Token);
+            // Started on a thread of its own: EvaluateAsync compiles and runs the body synchronously up to the
+            // first await, so calling it here would hold this request until the script chose to end.
+            var evaluation = Task.Run(
+                () => CSharpScript.EvaluateAsync<object?>(code, Options, context, typeof(ScriptContext), deadline.Token),
+                CancellationToken.None);
 
-            return new ScriptResult(true, Render(value), context.Output, [], Elapsed(started), [ScopeNote]);
+            Abandonable(evaluation, deadline);
+
+            if (await Task.WhenAny(evaluation, Task.Delay(TimeSpan.FromSeconds(seconds + 1), cancellationToken)) != evaluation)
+                return new ScriptResult(false, null, context.Output, [Runaway(seconds)], Elapsed(started), [RunawayNote]);
+
+            return new ScriptResult(true, Render(await evaluation), context.Output, [], Elapsed(started), [ScopeNote]);
         }
         catch (CompilationErrorException error)
         {
             return new ScriptResult(false, null, context.Output, [.. error.Diagnostics.Select(diagnostic => diagnostic.ToString())],
                 Elapsed(started), ["The script did not compile. Globals available: Solution, Compilations, Print, Types, Sym, Refs, Impls, Callers."]);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
             return new ScriptResult(false, null, context.Output,
-                [$"The script did not finish within {options.Value.ScriptTimeoutSeconds} seconds."], Elapsed(started), []);
+                [$"The script did not finish within {seconds} seconds."], Elapsed(started), []);
         }
         catch (Exception error)
         {
             return new ScriptResult(false, null, context.Output, [error.Message], Elapsed(started), []);
         }
     }
+
+    private static string Runaway(int seconds) =>
+        $"The script did not finish within {seconds} seconds and did not stop when asked.";
+
+    /// <summary>Lets the request return while the script runs on. Cancellation is cooperative: a script that never
+    /// awaits and never checks the token cannot be stopped from inside this process, and hanging the call forever
+    /// would take the server down with it. The task is left observed so its failure cannot reach the finalizer.</summary>
+    private static void Abandonable(Task evaluation, CancellationTokenSource deadline) =>
+        _ = evaluation.ContinueWith(
+            completed =>
+            {
+                _ = completed.Exception;
+                deadline.Dispose();
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
 
     private static long Elapsed(long started) => (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
 

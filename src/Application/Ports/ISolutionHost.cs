@@ -5,5 +5,5 @@ public interface ISolutionHost
 {
     Task<WorkspaceReport> LoadAsync(string path, CancellationToken cancellationToken, bool countDiagnostics = false);
 
-    UnloadReport Unload(string solutionId);
+    Task<UnloadReport> UnloadAsync(string solutionId, CancellationToken cancellationToken);
 }

@@ -9,10 +9,3 @@ public sealed record ExtractionPlan(
     BlockReplacement? Replacement,
     IReadOnlyList<string> Unresolved,
     IReadOnlyList<string> Notes);
-
-/// <summary>One compact edit: delete lines StartLine through EndLine of File and put Text in their place.</summary>
-public sealed record BlockReplacement(
-    string File,
-    int StartLine,
-    int EndLine,
-    string Text);
