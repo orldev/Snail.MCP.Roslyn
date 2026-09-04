@@ -44,14 +44,24 @@ internal static class MarkupMap
         return location.GetMappedLineSpan();
     }
 
-    /// <summary>The syntax tree the Razor generator produced from one markup file, or null when the generator did not run.</summary>
-    public static SyntaxTree? FindGenerated(Compilation compilation, TextDocument markup)
+    /// <summary>The syntax tree the Razor generator produced from one markup file, or null when it did not run.</summary>
+    /// <remarks>Matched on the generator's own hint name. A suffix match on the file path instead lets a root
+    /// component claim the output of a nested one with the same leaf name, and which of the two it gets depends
+    /// on the order the compilation happens to list its trees in.</remarks>
+    public static async Task<SyntaxTree?> FindGeneratedAsync(
+        Project project,
+        TextDocument markup,
+        CancellationToken cancellationToken)
     {
         var hint = Normalize(ExpectedHintName(markup));
 
-        return compilation.SyntaxTrees.FirstOrDefault(tree =>
-            tree.FilePath.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase)
-            && Normalize(tree.FilePath).EndsWith(hint, StringComparison.OrdinalIgnoreCase));
+        foreach (var generated in await project.GetSourceGeneratedDocumentsAsync(cancellationToken))
+        {
+            if (Normalize(generated.HintName).Equals(hint, StringComparison.OrdinalIgnoreCase))
+                return await generated.GetSyntaxTreeAsync(cancellationToken);
+        }
+
+        return null;
     }
 
     /// <summary>Generated document path to the markup file it was produced from, across the solution.</summary>
@@ -63,46 +73,25 @@ internal static class MarkupMap
 
         foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
         {
-            List<TextDocument> markup = [.. project.AdditionalDocuments.Where(document => IsMarkup(document.FilePath))];
+            Dictionary<string, string> byHint = new(StringComparer.OrdinalIgnoreCase);
 
-            if (markup.Count == 0)
+            foreach (var document in project.AdditionalDocuments)
+            {
+                if (IsMarkup(document.FilePath) && document.FilePath is { } authored)
+                    byHint[Normalize(ExpectedHintName(document))] = authored;
+            }
+
+            if (byHint.Count == 0)
                 continue;
 
-            var compilation = await project.GetCompilationAsync(cancellationToken);
-
-            if (compilation is null)
-                continue;
-
-            List<string> generated =
-            [
-                .. compilation.SyntaxTrees
-                    .Select(tree => tree.FilePath)
-                    .Where(path => !string.IsNullOrEmpty(path) && path.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
-            ];
-
-            foreach (var document in markup)
-                Connect(document, generated, map);
+            foreach (var generated in await project.GetSourceGeneratedDocumentsAsync(cancellationToken))
+            {
+                if (generated.FilePath is { } file && byHint.TryGetValue(Normalize(generated.HintName), out var authored))
+                    map[file] = authored;
+            }
         }
 
         return map;
-    }
-
-    private static void Connect(TextDocument markup, List<string> generated, Dictionary<string, string> map)
-    {
-        if (markup.FilePath is null)
-            return;
-
-        var hint = Normalize(ExpectedHintName(markup));
-
-        foreach (var path in generated)
-        {
-            if (!Normalize(path).EndsWith(hint, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            map[path] = markup.FilePath;
-
-            return;
-        }
     }
 
     private static string Normalize(string path) => path.Replace(Path.DirectorySeparatorChar, '/');

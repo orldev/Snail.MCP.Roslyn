@@ -106,7 +106,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IDia
         var text = await markup.GetTextAsync(cancellationToken);
         var (rendered, start, end) = Slice(text.Lines, startLine, maxLines);
         var compilation = await markup.Project.GetCompilationAsync(cancellationToken);
-        var generated = compilation is null ? null : MarkupMap.FindGenerated(compilation, markup);
+        var generated = await MarkupMap.FindGeneratedAsync(markup.Project, markup, cancellationToken);
         var usage = await SolutionInsights.UsageAsync(solution, cancellationToken);
 
         List<FileSymbol> outline = [];

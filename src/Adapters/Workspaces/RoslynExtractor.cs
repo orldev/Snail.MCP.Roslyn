@@ -150,10 +150,10 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
             notes.Add(BaselineNote);
 
         var forked = solution.WithAdditionalDocumentText(markup.Id, SourceText.From(candidate));
-        var compilation = await forked.GetProject(markup.Project.Id)!.GetCompilationAsync(cancellationToken);
-        var generated = compilation is null
-            ? null
-            : MarkupMap.FindGenerated(compilation, forked.GetAdditionalDocument(markup.Id)!);
+        var project = forked.GetProject(markup.Project.Id)!;
+        var compilation = await project.GetCompilationAsync(cancellationToken);
+        var generated = await MarkupMap.FindGeneratedAsync(
+            project, forked.GetAdditionalDocument(markup.Id)!, cancellationToken);
 
         if (compilation is null || generated is null)
         {
@@ -183,7 +183,7 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
     private static async Task<bool> BaselineBrokenAsync(TextDocument markup, CancellationToken cancellationToken)
     {
         var compilation = await markup.Project.GetCompilationAsync(cancellationToken);
-        var generated = compilation is null ? null : MarkupMap.FindGenerated(compilation, markup);
+        var generated = await MarkupMap.FindGeneratedAsync(markup.Project, markup, cancellationToken);
 
         return compilation is not null
             && generated is not null

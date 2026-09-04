@@ -123,6 +123,24 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         }
         """;
 
+    private const string RootTile =
+        """
+        <span>root</span>
+
+        @code {
+            public int RootOnly { get; set; }
+        }
+        """;
+
+    private const string NestedTile =
+        """
+        <span>nested</span>
+
+        @code {
+            public int NestedOnly { get; set; }
+        }
+        """;
+
     private readonly string folder = Directory.CreateTempSubdirectory("roslyn-razor").FullName;
 
     private readonly AnalysisFixture fixture = new();
@@ -139,6 +157,11 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         await File.WriteAllTextAsync(Path.Combine(folder, "Cards.razor"), Cards);
         await File.WriteAllTextAsync(Path.Combine(folder, "Wide.razor"), Wide);
         await File.WriteAllTextAsync(Path.Combine(folder, "Rows.razor"), Rows);
+
+        // Same leaf name in two folders: the generated hint names differ only by the directory prefix.
+        var nested = Directory.CreateDirectory(Path.Combine(folder, "Components", "Pages")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(folder, "Tile.razor"), RootTile);
+        await File.WriteAllTextAsync(Path.Combine(nested, "Tile.razor"), NestedTile);
 
         await RestoreAsync();
 
@@ -412,6 +435,31 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 
         Assert.DoesNotContain(probe.Notes, note => note.Contains("cut it apart", StringComparison.Ordinal));
         Assert.Contains("LeftTitle", probe.Unresolved);
+    }
+
+    [Fact]
+    public async Task ReadAsync_ComponentInNestedFolder_MapsToItsOwnGeneratedCode()
+    {
+        var view = await fixture.Reader.ReadAsync(
+            solutionId, Path.Combine(folder, "Components", "Pages", "Tile.razor"), 1, 2000, CancellationToken.None);
+
+        var component = Assert.Single(view.Symbols, symbol => symbol.Kind == "NamedType");
+
+        Assert.Equal("Blazing.Components.Pages", component.Container);
+        Assert.Single(view.Symbols, symbol => symbol.Name == "NestedOnly");
+    }
+
+    [Fact]
+    public async Task ReadAsync_ComponentSharingItsLeafNameWithANestedOne_MapsToItsOwnGeneratedCode()
+    {
+        var view = await fixture.Reader.ReadAsync(
+            solutionId, Path.Combine(folder, "Tile.razor"), 1, 2000, CancellationToken.None);
+
+        var component = Assert.Single(view.Symbols, symbol => symbol.Kind == "NamedType");
+
+        Assert.Equal("Blazing", component.Container);
+        Assert.Single(view.Symbols, symbol => symbol.Name == "RootOnly");
+        Assert.DoesNotContain(view.Symbols, symbol => symbol.Name == "NestedOnly");
     }
 
     [Fact]
