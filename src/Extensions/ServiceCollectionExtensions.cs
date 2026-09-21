@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<SessionReach>();
             services.AddSingleton<ToolIndex>();
             services.AddSingleton<SolutionCache>();
+            services.AddSingleton<PackageRestore>();
             services.AddSingleton<ScriptTally>();
             services.AddSingleton<ISolutionHost, RoslynSolutionHost>();
             services.AddSingleton<IDiagnosticReader, RoslynDiagnostics>();

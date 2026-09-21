@@ -25,6 +25,9 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
 
     public int Loaded => entries.Count;
 
+    /// <summary>Whether this solution is still held, so a caller can reuse it instead of opening it again.</summary>
+    public bool Holds(string id) => entries.ContainsKey(id);
+
     public async Task StoreAsync(
         string id,
         MSBuildWorkspace workspace,

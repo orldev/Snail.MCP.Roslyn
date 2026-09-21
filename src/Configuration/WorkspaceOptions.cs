@@ -19,6 +19,17 @@ public sealed class WorkspaceOptions
     /// it and is confined by <see cref="SessionRoots"/>.</remarks>
     public int Port { get; init; }
 
+    /// <summary>Whether load_solution restores packages itself when none are restored.</summary>
+    /// <remarks>On, because nothing else in the arrangement does it: the worker clones the copy and never
+    /// builds it, and without restore every semantic answer under-reports. Off for a deployment that restores
+    /// by other means and would rather this server never started a process.</remarks>
+    public bool RestoreOnLoad { get; init; } = true;
+
+    /// <summary>Seconds one restore may take; past it the load goes on unrestored and says so.</summary>
+    /// <remarks>A cold package cache on a large solution is minutes, and a restore that hangs on an
+    /// unreachable feed would otherwise hang the step that asked to load the solution.</remarks>
+    public int RestoreSeconds { get; init; } = 300;
+
     public int MaxIssues { get; init; } = 200;
 
     public int MaxFindings { get; init; } = 200;

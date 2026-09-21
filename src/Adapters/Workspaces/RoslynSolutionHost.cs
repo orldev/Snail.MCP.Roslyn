@@ -8,9 +8,18 @@ using Snail.MCP.Roslyn.Application;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, SessionReach reach, ILogger<RoslynSolutionHost> log)
+internal sealed class RoslynSolutionHost(
+    IPathMap paths,
+    SolutionCache cache,
+    SessionReach reach,
+    PackageRestore restore,
+    ILogger<RoslynSolutionHost> log)
     : ISolutionHost
 {
+    private const string ReusedHint =
+        "This solution was already loaded and was reused: its compilations are the ones built earlier, "
+        + "brought level with the files on disk. Call unload_solution first if you need it opened from scratch.";
+
     private const string RestoreHint =
         "Package restore has not run for at least one project: no obj/project.assets.json exists. "
         + "Run 'dotnet restore' on the solution first. Until then any error about a missing type or namespace "
@@ -42,7 +51,16 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, Se
             return Unopened(target, $"No solution or project found at {paths.ToCaller(target)}");
 
         var started = Stopwatch.GetTimestamp();
+        var identity = Identify(entry);
+
+        if (cache.Holds(identity))
+            return await ReusedAsync(identity, entry, started, countDiagnostics, cancellationToken);
+
         var notes = new ConcurrentBag<string>();
+
+        if (await restore.EnsureAsync(entry, cancellationToken) is { } restored)
+            notes.Add(restored);
+
         var workspace = MSBuildWorkspace.Create();
         using var listener = workspace.RegisterWorkspaceFailedHandler(failure => notes.Add(failure.Diagnostic.Message));
 
@@ -66,10 +84,10 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, Se
         var unrestored = ProjectRestore.Missing(solution);
         var readiness = Decide(projects, compiled, unrestored.Count == 0);
 
-        await cache.StoreAsync(Identify(entry), workspace, solution, entry, cancellationToken);
+        await cache.StoreAsync(identity, workspace, solution, entry, cancellationToken);
 
         return new WorkspaceReport(
-            Identify(entry),
+            identity,
             readiness,
             paths.ToCaller(entry),
             projects,
@@ -78,6 +96,41 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, Se
             warnings,
             (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
             Summarize(notes, readiness, unloaded.Count, unrestored));
+    }
+
+    /// <summary>The solution already in memory, brought level with the disk instead of opened again.</summary>
+    /// <remarks>
+    /// This is what a server that outlives a step is for. Opening a solution is the expensive part —
+    /// seconds on a small repository, minutes on a large one — and a process that lived for one step had
+    /// to pay it every time. The freshness is the same one every other tool call already relies on: the
+    /// cache re-reads what changed, and reopens by itself when projects were added or removed.
+    /// </remarks>
+    private async Task<WorkspaceReport> ReusedAsync(
+        string identity,
+        string entry,
+        long started,
+        bool countDiagnostics,
+        CancellationToken cancellationToken)
+    {
+        var solution = await cache.FreshAsync(identity, cancellationToken);
+        var projects = Inventory(solution);
+        var unloaded = Unloaded(entry, solution);
+        var (errors, warnings, compiled) = await CountAsync(solution, countDiagnostics, cancellationToken);
+        var unrestored = ProjectRestore.Missing(solution);
+        var readiness = Decide(projects, compiled, unrestored.Count == 0);
+
+        log.LogInformation("Reused {Entry} as {Identity}", entry, identity);
+
+        return new WorkspaceReport(
+            identity,
+            readiness,
+            paths.ToCaller(entry),
+            projects,
+            unloaded,
+            errors,
+            warnings,
+            (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+            [ReusedHint, .. Summarize([], readiness, unloaded.Count, unrestored)]);
     }
 
     public async Task<UnloadReport> UnloadAsync(string solutionId, CancellationToken cancellationToken)

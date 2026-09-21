@@ -51,6 +51,28 @@ no line number in the sources, and none is invented.
 judge: string literals, comments, container registrations by name, unrelated symbols sharing the name. A tool that
 silently renamed half of them would be the original problem in new packaging.
 
+## Тёплое решение
+
+`load_solution` на решении, которое уже загружено, **не открывает его заново**: берётся то, что в памяти,
+и приводится в соответствие с диском — так же, как это делает всякий другой вызов. Изменённые файлы
+перечитываются, а если проекты добавились или исчезли, кэш переоткрывает решение сам.
+
+Замер на решении платформы, 14 проектов, в контейнере:
+
+| | время |
+|---|---|
+| первая загрузка | 5043 мс |
+| повторные | 70 мс, 59 мс |
+
+Ради этого сервер и переехал из образа воркера в контейнер: процесс, живший один шаг, платил пять секунд
+каждый раз. `unload_solution` заставляет открыть заново, когда это зачем-то нужно.
+
+Пакеты сервер восстанавливает сам: рабочую копию задачи клонирует воркер и никогда не собирает, поэтому
+`project.assets.json` в ней нет, а без него всякий семантический ответ занижен. Раньше сервер только писал
+об этом в примечании — модели, которая сделать с ним ничего не могла. `Workspace:RestoreOnLoad` выключает
+это для развёртывания, которое восстанавливает пакеты иначе; `Workspace:RestoreSeconds` (300) — предел,
+после которого загрузка идёт дальше без пакетов и честно об этом говорит.
+
 ## Requirements
 
 The .NET SDK must be installed: the server loads MSBuild from it through `MSBuildLocator`, so it is deliberately
@@ -63,6 +85,8 @@ The .NET SDK must be installed: the server loads MSBuild from it through `MSBuil
 {
   "Workspace": {
     "Port": 8817,
+    "RestoreOnLoad": true,
+    "RestoreSeconds": 300,
     "Roots": { "/caller/path": "/path/inside/this/process" },
     "MaxIssues": 200,
     "MaxFindings": 200,
