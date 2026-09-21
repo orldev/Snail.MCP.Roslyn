@@ -6,7 +6,14 @@ namespace Snail.MCP.Roslyn.Tests;
 public sealed class StdioContractTests
 {
     /// <summary>Bytes the tool catalogue may occupy, a little above what it occupies now.</summary>
-    private const int Ceiling = 28_500;
+    /// <remarks>
+    /// Raised once, from 28 500, and deliberately: find_tool and run_tools cost about a kilobyte of the
+    /// charge every caller pays all day, and what they buy is the other way round — a role that carries a
+    /// handful of tools and asks for the rest by name, and three questions answered in one round trip
+    /// instead of three. The trade is only worth it while those two stay short, which is why their own
+    /// words live in the index and not in their descriptions.
+    /// </remarks>
+    private const int Ceiling = 29_500;
 
     [Fact]
     public async Task StandardOutput_AfterInitialize_CarriesOnlyJsonRpcMessages()
@@ -78,7 +85,7 @@ public sealed class StdioContractTests
 
         var tools = listing!.RootElement.GetProperty("result").GetProperty("tools");
 
-        Assert.Equal(30, tools.GetArrayLength());
+        Assert.Equal(32, tools.GetArrayLength());
         Assert.All(
             tools.EnumerateArray(),
             tool => Assert.False(string.IsNullOrWhiteSpace(tool.GetProperty("description").GetString())));
@@ -132,6 +139,69 @@ public sealed class StdioContractTests
 
         Assert.Contains("get_diagnostics", logged, StringComparison.Ordinal);
         Assert.Contains(nameof(InvalidOperationException), logged, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// Три вопроса одним заходом вместо трёх: ровно то, ради чего run_tools и существует. Шаги здесь
+    /// нарочно такие, которым не нужно загруженное решение, — проверяется оболочка, а не Roslyn.
+    /// </summary>
+    [Fact]
+    public async Task RunTools_SeveralSteps_AnswersEachOfThemInOneCall()
+    {
+        using var server = Start();
+
+        await HandshakeAsync(server);
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"run_tools","arguments":{"steps":[{"tool":"find_tool","params":{"task":"does it compile"}},{"tool":"find_tool","params":{"task":"rename safely"}}]}}}
+            """);
+        await server.StandardInput.FlushAsync(CancellationToken.None);
+
+        var answer = await ReadUntilAsync(server, 2);
+
+        server.StandardInput.Close();
+        await server.WaitForExitAsync(CancellationToken.None);
+
+        Assert.NotNull(answer);
+
+        var said = answer!.RootElement.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString()!;
+
+        Assert.Contains("\"ran\":2", said, StringComparison.Ordinal);
+        Assert.Contains("get_diagnostics", said, StringComparison.Ordinal);
+        Assert.Contains("rename_symbol", said, StringComparison.Ordinal);
+    }
+
+    /// <summary>Шаг, называющий несуществующий инструмент, останавливает заход и говорит, куда смотреть.</summary>
+    [Fact]
+    public async Task RunTools_AStepNamingNoToolOfThisServer_StopsAndSaysWhereToLook()
+    {
+        using var server = Start();
+
+        await HandshakeAsync(server);
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"run_tools","arguments":{"steps":[{"tool":"make_coffee","params":{}}]}}}
+            """);
+        await server.StandardInput.FlushAsync(CancellationToken.None);
+
+        var answer = await ReadUntilAsync(server, 2);
+
+        server.StandardInput.Close();
+        await server.WaitForExitAsync(CancellationToken.None);
+
+        var said = answer!.RootElement.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString()!;
+
+        Assert.Contains("does not name a tool", said, StringComparison.Ordinal);
+        Assert.Contains("find_tool", said, StringComparison.Ordinal);
+    }
+
+    private static async Task HandshakeAsync(System.Diagnostics.Process server)
+    {
+        await server.StandardInput.WriteLineAsync(
+            """
+            {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"contract","version":"0"}}}
+            """);
+        await server.StandardInput.WriteLineAsync("""{"jsonrpc":"2.0","method":"notifications/initialized"}""");
     }
 
     /// <summary>The budget is set below any real answer, so the smallest successful call is over it.</summary>

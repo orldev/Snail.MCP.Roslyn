@@ -1,3 +1,4 @@
+using ModelContextProtocol.Protocol;
 using System.ComponentModel;
 using System.Reflection;
 using ModelContextProtocol;
@@ -62,11 +63,13 @@ public sealed class ToolContractTests
                     $"{tool.Name}.{parameter.Name} has no description")));
     }
 
-    /// <summary>Parameters the caller fills in. The cancellation token and the progress sink are supplied by
-    /// the server, never appear in the schema, and so have nobody to describe themselves to.</summary>
+    /// <summary>Parameters the caller fills in. The cancellation token, the progress sink and the request
+    /// itself are supplied by the server, never appear in the schema, and so have nobody to describe
+    /// themselves to.</summary>
     private static bool Asked(ParameterInfo parameter) =>
         parameter.ParameterType != typeof(CancellationToken)
-        && parameter.ParameterType != typeof(IProgress<ProgressNotificationValue>);
+        && parameter.ParameterType != typeof(IProgress<ProgressNotificationValue>)
+        && parameter.ParameterType != typeof(RequestContext<CallToolRequestParams>);
 
     [Fact]
     public void RefactorToolDescriptions_EveryTool_PromiseNeverWrites()
@@ -86,11 +89,11 @@ public sealed class ToolContractTests
         string[] declared =
         [
             "analyze_change_impact", "change_signature", "check_architecture", "extract_component", "find_callers", "find_implementations",
-            "find_references", "find_tests_for_symbol", "find_uncovered_symbols", "find_unused_symbols",
+            "find_references", "find_tests_for_symbol", "find_tool", "find_uncovered_symbols", "find_unused_symbols",
             "get_code_fixes", "get_di_registrations", "get_diagnostics", "get_generated_code", "get_solution_overview",
             "get_symbol_info", "get_symbol_source", "get_type_hierarchy", "health_check", "load_solution",
             "move_type", "organize_usings", "read_file", "rename_namespace", "rename_symbol", "run_analyzers", "run_script",
-            "search_symbols", "unload_solution", "validate"
+            "run_tools", "search_symbols", "unload_solution", "validate"
         ];
 
         string[] actual =

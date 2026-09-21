@@ -8,6 +8,9 @@ public static class ServerGuidance
         This server keeps a C# solution compiled in memory. Use it instead of reading files one by one,
         and instead of `dotnet build`, whenever you are working on C#.
 
+        Do not know which tool: call find_tool with the task in words. Several questions that do not depend on
+        each other's answers: call run_tools once with them as steps, instead of a round trip each.
+
         Start of a C# task: call load_solution once on the .sln or .csproj, keep the returned solutionId.
         Readiness 'Degraded' means restore has not run and empty answers are unreliable — say so rather than trusting them.
 

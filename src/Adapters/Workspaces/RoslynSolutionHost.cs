@@ -4,10 +4,11 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
+using Snail.MCP.Roslyn.Application;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
-internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, ILogger<RoslynSolutionHost> log)
+internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, SessionReach reach, ILogger<RoslynSolutionHost> log)
     : ISolutionHost
 {
     private const string RestoreHint =
@@ -31,6 +32,10 @@ internal sealed class RoslynSolutionHost(IPathMap paths, SolutionCache cache, IL
         IProgress<WorkStep>? progress = null)
     {
         var target = paths.ToProcess(path);
+
+        if (!reach.Allows(target))
+            return Unopened(target, reach.Refusal(paths.ToCaller(target)));
+
         var entry = Resolve(target);
 
         if (entry is null)

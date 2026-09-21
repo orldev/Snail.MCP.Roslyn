@@ -7,6 +7,18 @@ public sealed class WorkspaceOptions
     /// <summary>Caller root mapped to process root; an empty map means the two coincide.</summary>
     public Dictionary<string, string> Roots { get; init; } = [];
 
+    /// <summary>Folders this process may reach at all; empty means wherever it can, which is right for a
+    /// server started for one caller and wrong for one shared by several.</summary>
+    /// <remarks>A session opened at an address states its own root there, and this is what stands when it
+    /// names none — the way a server run as a program is confined.</remarks>
+    public string[] SessionRoots { get; init; } = [];
+
+    /// <summary>Port to answer on; none means the server is started as a program and speaks stdio.</summary>
+    /// <remarks>One knob decides the whole shape of the process: at an address it stands behind every worker of a
+    /// machine and each session names the copy it works in, as a program it belongs to the one caller that started
+    /// it and is confined by <see cref="SessionRoots"/>.</remarks>
+    public int Port { get; init; }
+
     public int MaxIssues { get; init; } = 200;
 
     public int MaxFindings { get; init; } = 200;
@@ -30,4 +42,7 @@ public sealed class WorkspaceOptions
     /// <summary>How many solutions stay loaded at once. Each holds its own compilations, so the ceiling is on
     /// memory; the one used longest ago is dropped and has to be loaded again.</summary>
     public int MaxSolutions { get; init; } = 4;
+
+    /// <summary>How many steps one run_tools call may take; a run long enough to be a program belongs in run_script.</summary>
+    public int MaxRunSteps { get; init; } = 10;
 }

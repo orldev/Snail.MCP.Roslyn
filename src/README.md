@@ -62,6 +62,7 @@ The .NET SDK must be installed: the server loads MSBuild from it through `MSBuil
 ```json
 {
   "Workspace": {
+    "Port": 8817,
     "Roots": { "/caller/path": "/path/inside/this/process" },
     "MaxIssues": 200,
     "MaxFindings": 200,
@@ -71,6 +72,17 @@ The .NET SDK must be installed: the server loads MSBuild from it through `MSBuil
   }
 }
 ```
+
+`Port` decides the shape of the process. Unset, the server speaks stdio to whatever started it, belongs
+to that one caller and reaches wherever it does — the shape a desktop client installs. Set, it listens on
+every interface and serves sessions at `/mcp`, each naming the copy it works in:
+`http://mcp-roslyn:8817/mcp?root=/workspaces/task-7`. One server then stands behind every agent on the
+machine, and its warm compilations are shared between steps instead of rebuilt for each.
+
+A session opened at a root **this machine does not have** is refused on the spot, with the root named —
+`400 this machine has no /workspaces/task-7`. Once servers answer at addresses, the worst thing that can
+happen is an agent on one machine reaching the server of another: it would answer, about a solution that
+is not the task's copy, and a wrong answer shaped like a right one is far worse than an error.
 
 `Roots` maps the caller's filesystem to this process's, for running the server in a container. Empty means the two coincide.
 `AllowScripts` governs `run_script`, which executes C# in this process with this process's rights: the container,
