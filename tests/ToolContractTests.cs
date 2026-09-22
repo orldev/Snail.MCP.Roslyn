@@ -116,4 +116,22 @@ public sealed class ToolContractTests
                 tool.GetCustomAttribute<DescriptionAttribute>()!.Description,
                 StringComparison.Ordinal));
     }
+
+    /// <summary>Общая для всего флота механика зовётся одинаково у всех трёх серверов.</summary>
+    /// <remarks>
+    /// find_tool, run_tools и run_program — это не про решение, а про то, как у ЛЮБОГО сервера спрашивают,
+    /// что он умеет, и как тратят несколько его инструментов за один вызов. Платформа зовёт их как
+    /// «сервер.имя», и разнобой означал бы, что один и тот же вопрос задают трём серверам тремя способами.
+    /// Проверяется здесь, потому что имя инструмента — часть договора наружу, а не деталь.
+    /// </remarks>
+    [Fact]
+    public void The_machinery_of_the_fleet_is_spelled_the_same_way_everywhere()
+    {
+        string[] machinery = ["find_tool", "run_program", "run_tools"];
+
+        var names = Tools.Select(tool => tool.GetCustomAttribute<McpServerToolAttribute>()!.Name!).ToList();
+
+        Assert.NotEmpty(names.Intersect(machinery));
+        Assert.DoesNotContain(names, name => machinery.Any(known => name.EndsWith("_" + known, StringComparison.Ordinal)));
+    }
 }

@@ -115,6 +115,32 @@ public sealed class AddressTests
         Assert.Contains("named no root", await answer.Content.ReadAsStringAsync(), StringComparison.Ordinal);
     }
 
+
+    /// <summary>
+    /// Белый список роли держался ровно до того, как ей выдали инструмент, зовущий другие инструменты:
+    /// run_tools дотягивался до всего, что есть у сервера, включая то, что оператор нарочно не выдал.
+    /// Теперь разрешённое называет тот же адрес, что и корень, и проверяется оно на пороге вызова.
+    /// </summary>
+    [Fact]
+    public async Task A_tool_the_session_was_not_granted_is_refused()
+    {
+        var copy = Directory.CreateTempSubdirectory("snail-grant").FullName;
+
+        await using var server = McpServerHost.Listening([], port: 0);
+        await server.StartAsync();
+
+        var address = $"{Address(server)}{McpServerHost.Path}?root={Uri.EscapeDataString(copy)}&tool=health_check";
+
+        await using var client = await McpClient.CreateAsync(new HttpClientTransport(new HttpClientTransportOptions { Endpoint = new Uri(address) }));
+
+        var refused = await client.CallToolAsync("run_script", new Dictionary<string, object?>());
+
+        Assert.Equal(true, refused.IsError);
+        Assert.Contains("was not granted",
+            string.Join(string.Empty, refused.Content.OfType<TextContentBlock>().Select(block => block.Text)),
+            StringComparison.Ordinal);
+    }
+
     /// <summary>Сервер слушает на всех интерфейсах; обращаться к «::» нельзя, поэтому берётся порт и петля.</summary>
     private static string Address(WebApplication server)
     {

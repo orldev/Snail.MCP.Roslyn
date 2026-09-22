@@ -1,7 +1,7 @@
 # The server as a container: one per machine, standing behind every agent on it.
 #
-#   docker build -t snail/mcp-roslyn .
-#   docker run -p 8821:8821 -e Workspace__Port=8821 -v workspaces:/workspaces -v nuget:/nuget snail/mcp-roslyn
+#   docker build -t snail/s3l-roslyn-mcp .
+#   docker run -p 8821:8821 -e Workspace__Port=8821 -v workspaces:/workspaces -v nuget:/nuget snail/s3l-roslyn-mcp
 #
 # Two things this image cannot do without.
 #

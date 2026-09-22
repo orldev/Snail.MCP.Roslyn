@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
             services.Configure<WorkspaceOptions>(configuration.GetSection(WorkspaceOptions.Section));
             services.AddSingleton<IPathMap, RootPathMap>();
             services.AddSingleton<SessionReach>();
+            services.AddSingleton<SessionGrant>();
             services.AddSingleton<ToolIndex>();
             services.AddSingleton<SolutionCache>();
             services.AddSingleton<PackageRestore>();
@@ -72,6 +73,7 @@ public static class ServiceCollectionExtensions
         private IMcpServerBuilder AddMcpTools()
         {
             return services.AddMcpServer(server => server.ServerInstructions = ServerGuidance.Instructions)
+                .RefuseWhatWasNotGranted()
                 .ExplainFailures()
                 .BoundAnswers()
                 .WithTools<SolutionTools>()
