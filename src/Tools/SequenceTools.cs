@@ -32,7 +32,7 @@ public sealed record ToolStep(string? Tool, JsonObject? Params);
 [McpServerToolType]
 public sealed class SequenceTools(IEnumerable<McpServerTool> tools, IOptions<WorkspaceOptions> options)
 {
-    [McpServerTool(Name = "run_tools")]
+    [McpServerTool(Name = "run_tools", ReadOnly = false, Destructive = true, OpenWorld = true)]
     [Description(ToolDescriptions.RunTools)]
     public async Task<JsonObject> RunTools(
         RequestContext<CallToolRequestParams> context,

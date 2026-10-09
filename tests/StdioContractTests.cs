@@ -12,8 +12,12 @@ public sealed class StdioContractTests
     /// handful of tools and asks for the rest by name, and three questions answered in one round trip
     /// instead of three. The trade is only worth it while those two stay short, which is why their own
     /// words live in the index and not in their descriptions.
+    /// Raised a second time, from 29 500: the annotations measured 1 973 bytes of the catalogue, and what
+    /// they buy is the server's place in a conversation at all. A host that only hands out tools which say
+    /// they read — the swarm does, by readOnlyHint — had no way to tell this server reads, and left every
+    /// tool of it out. A kilobyte is the price of being asked a question instead of being skipped.
     /// </remarks>
-    private const int Ceiling = 29_500;
+    private const int Ceiling = 31_000;
 
     [Fact]
     public async Task StandardOutput_AfterInitialize_CarriesOnlyJsonRpcMessages()
@@ -105,6 +109,54 @@ public sealed class StdioContractTests
             tools.GetRawText().Length < Ceiling,
             $"The tool catalogue is {tools.GetRawText().Length} bytes against a ceiling of {Ceiling}. Shorten what was "
             + "added, or raise the ceiling deliberately and say what the caller gets for the context it costs.");
+    }
+
+    /// <summary>Every tool says whether it only reads, and the four that do not are named here one by one.</summary>
+    /// <remarks>
+    /// Checked on the wire and not by reflection, because the annotation is read off the listing by whoever
+    /// hands the tools out, and a property set in C# that never reaches the JSON would pass a reflection test
+    /// while leaving the server exactly as unusable as before. The four are not an oversight: load_solution
+    /// restores packages and lets MSBuild write obj, unload_solution throws the compilations away, run_script
+    /// runs C# this process cannot vouch for, and run_tools forwards to any of them. Everything else answers
+    /// questions about a solution and returns edits for the caller to apply, never applying them itself.
+    /// </remarks>
+    [Fact]
+    public async Task ToolsList_EveryTool_SaysWhetherItOnlyReads()
+    {
+        string[] writing = ["load_solution", "run_script", "run_tools", "unload_solution"];
+
+        using var server = Start();
+
+        await HandshakeAsync(server);
+        await server.StandardInput.WriteLineAsync("""{"jsonrpc":"2.0","id":2,"method":"tools/list"}""");
+        await server.StandardInput.FlushAsync(CancellationToken.None);
+
+        var listing = await ReadUntilAsync(server, 2);
+
+        server.StandardInput.Close();
+        await server.WaitForExitAsync(CancellationToken.None);
+
+        Assert.NotNull(listing);
+
+        var tools = listing!.RootElement.GetProperty("result").GetProperty("tools");
+
+        Assert.All(
+            tools.EnumerateArray(),
+            tool => Assert.True(
+                tool.TryGetProperty("annotations", out var annotations)
+                && annotations.TryGetProperty("readOnlyHint", out _),
+                $"{tool.GetProperty("name").GetString()} does not say whether it only reads, so a host that "
+                + "hands out reading tools alone will leave it out."));
+
+        string[] declared =
+        [
+            .. tools.EnumerateArray()
+                .Where(tool => !tool.GetProperty("annotations").GetProperty("readOnlyHint").GetBoolean())
+                .Select(tool => tool.GetProperty("name").GetString()!)
+                .Order(StringComparer.Ordinal)
+        ];
+
+        Assert.Equal(writing, declared);
     }
 
     [Fact]

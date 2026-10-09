@@ -8,7 +8,7 @@ namespace Snail.MCP.Roslyn.Tools;
 [McpServerToolType]
 public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnostics, ISolutionSurveyor surveyor, IFileReader reader)
 {
-    [McpServerTool(Name = "load_solution")]
+    [McpServerTool(Name = "load_solution", ReadOnly = false, Destructive = false, OpenWorld = true)]
     [Description(ToolDescriptions.LoadSolution)]
     public Task<WorkspaceReport> LoadSolution(
         [Description("Absolute path to a .sln, .slnx or .csproj file, or a directory containing one.")]
@@ -19,7 +19,7 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
         bool countDiagnostics = false) =>
         host.LoadAsync(path, cancellationToken, countDiagnostics, new ToolProgress(progress));
 
-    [McpServerTool(Name = "get_diagnostics")]
+    [McpServerTool(Name = "get_diagnostics", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetDiagnostics)]
     public Task<IssuePage> GetDiagnostics(
         [Description(ParameterDescriptions.Solution)]
@@ -35,7 +35,7 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
         bool includeGenerated = false) =>
         diagnostics.ReadAsync(solutionId, scope, minimum, limit, includeGenerated, cancellationToken);
 
-    [McpServerTool(Name = "read_file")]
+    [McpServerTool(Name = "read_file", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.ReadFile)]
     public Task<FileView> ReadFile(
         [Description(ParameterDescriptions.Solution)]
@@ -49,7 +49,7 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
         int maxLines = 2000) =>
         reader.ReadAsync(solutionId, file, startLine, maxLines, cancellationToken);
 
-    [McpServerTool(Name = "get_solution_overview")]
+    [McpServerTool(Name = "get_solution_overview", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetSolutionOverview)]
     public Task<SolutionOverview> GetSolutionOverview(
         [Description(ParameterDescriptions.Solution)]
@@ -60,7 +60,7 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
         int limit = 20) =>
         surveyor.OverviewAsync(solutionId, limit, cancellationToken, new ToolProgress(progress));
 
-    [McpServerTool(Name = "check_architecture")]
+    [McpServerTool(Name = "check_architecture", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.CheckArchitecture)]
     public Task<ArchitectureReport> CheckArchitecture(
         [Description(ParameterDescriptions.Solution)]
@@ -70,7 +70,7 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
         int limit = 50) =>
         surveyor.CheckAsync(solutionId, limit, cancellationToken);
 
-    [McpServerTool(Name = "health_check")]
+    [McpServerTool(Name = "health_check", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.HealthCheck)]
     public Task<HealthReport> HealthCheck(
         [Description(ParameterDescriptions.Solution)]
@@ -78,7 +78,7 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
         CancellationToken cancellationToken) =>
         surveyor.HealthAsync(solutionId, cancellationToken);
 
-    [McpServerTool(Name = "unload_solution")]
+    [McpServerTool(Name = "unload_solution", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description(ToolDescriptions.UnloadSolution)]
     public Task<UnloadReport> UnloadSolution(
         [Description(ParameterDescriptions.Solution)]

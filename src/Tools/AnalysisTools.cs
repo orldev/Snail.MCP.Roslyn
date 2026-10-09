@@ -8,7 +8,7 @@ namespace Snail.MCP.Roslyn.Tools;
 [McpServerToolType]
 public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyzers, ICodeValidator validator)
 {
-    [McpServerTool(Name = "analyze_change_impact")]
+    [McpServerTool(Name = "analyze_change_impact", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.AnalyzeChangeImpact)]
     public Task<ImpactReport> AnalyzeChangeImpact(
         [Description(ParameterDescriptions.Solution)]
@@ -28,7 +28,7 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         int limit = 50) =>
         impact.AnalyzeAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), limit, cancellationToken);
 
-    [McpServerTool(Name = "run_analyzers")]
+    [McpServerTool(Name = "run_analyzers", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.RunAnalyzers)]
     public Task<AnalyzerPage> RunAnalyzers(
         [Description(ParameterDescriptions.Solution)]
@@ -45,7 +45,7 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         int limit = 50) =>
         analyzers.RunAsync(solutionId, scope, category, minimum, limit, cancellationToken, new ToolProgress(progress));
 
-    [McpServerTool(Name = "get_code_fixes")]
+    [McpServerTool(Name = "get_code_fixes", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetCodeFixes)]
     public Task<CodeFixPage> GetCodeFixes(
         [Description(ParameterDescriptions.Solution)]
@@ -59,7 +59,7 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         string? diagnosticId = null) =>
         analyzers.FixesAsync(solutionId, file, line, diagnosticId, cancellationToken);
 
-    [McpServerTool(Name = "validate")]
+    [McpServerTool(Name = "validate", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.Validate)]
     public Task<ValidationResult> Validate(
         [Description(ParameterDescriptions.Solution)]

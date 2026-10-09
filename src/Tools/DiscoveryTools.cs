@@ -9,7 +9,7 @@ namespace Snail.MCP.Roslyn.Tools;
 [McpServerToolType]
 public sealed class DiscoveryTools(ToolIndex index)
 {
-    [McpServerTool(Name = "find_tool")]
+    [McpServerTool(Name = "find_tool", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.FindTool)]
     public JsonObject FindTool(
         [Description(ToolDescriptions.FindToolTask)] string task,

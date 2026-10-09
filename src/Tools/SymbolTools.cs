@@ -11,7 +11,7 @@ public sealed class SymbolTools(
     IHierarchyExplorer hierarchy,
     IGeneratedCodeReader generated)
 {
-    [McpServerTool(Name = "search_symbols")]
+    [McpServerTool(Name = "search_symbols", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.SearchSymbols)]
     public Task<IReadOnlyList<SymbolMatch>> SearchSymbols(
         [Description(ParameterDescriptions.Solution)]
@@ -25,7 +25,7 @@ public sealed class SymbolTools(
         int limit = 30) =>
         symbols.SearchAsync(solutionId, query, kind, limit, cancellationToken);
 
-    [McpServerTool(Name = "get_symbol_info")]
+    [McpServerTool(Name = "get_symbol_info", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetSymbolInfo)]
     public Task<SymbolDetails?> GetSymbolInfo(
         [Description(ParameterDescriptions.Solution)]
@@ -41,7 +41,7 @@ public sealed class SymbolTools(
         int column = 0) =>
         symbols.DescribeAsync(solutionId, new SymbolQuery(symbolId, null, file, line, column), cancellationToken);
 
-    [McpServerTool(Name = "get_symbol_source")]
+    [McpServerTool(Name = "get_symbol_source", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetSymbolSource)]
     public Task<SymbolSource?> GetSymbolSource(
         [Description(ParameterDescriptions.Solution)]
@@ -57,7 +57,7 @@ public sealed class SymbolTools(
         int column = 0) =>
         symbols.ReadAsync(solutionId, new SymbolQuery(symbolId, null, file, line, column), cancellationToken);
 
-    [McpServerTool(Name = "find_references")]
+    [McpServerTool(Name = "find_references", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.FindReferences)]
     public Task<ReferencePage> FindReferences(
         [Description(ParameterDescriptions.Solution)]
@@ -75,7 +75,7 @@ public sealed class SymbolTools(
         int limit = 100) =>
         references.FindAsync(solutionId, new SymbolQuery(symbolId, null, file, line, column), limit, cancellationToken);
 
-    [McpServerTool(Name = "find_implementations")]
+    [McpServerTool(Name = "find_implementations", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.FindImplementations)]
     public Task<IReadOnlyList<SymbolMatch>> FindImplementations(
         [Description(ParameterDescriptions.Solution)]
@@ -95,7 +95,7 @@ public sealed class SymbolTools(
         int limit = 50) =>
         hierarchy.ImplementationsAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), limit, cancellationToken);
 
-    [McpServerTool(Name = "find_callers")]
+    [McpServerTool(Name = "find_callers", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.FindCallers)]
     public Task<IReadOnlyList<SymbolMatch>> FindCallers(
         [Description(ParameterDescriptions.Solution)]
@@ -115,7 +115,7 @@ public sealed class SymbolTools(
         int limit = 50) =>
         hierarchy.CallersAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), limit, cancellationToken);
 
-    [McpServerTool(Name = "get_type_hierarchy")]
+    [McpServerTool(Name = "get_type_hierarchy", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetTypeHierarchy)]
     public Task<TypeHierarchy?> GetTypeHierarchy(
         [Description(ParameterDescriptions.Solution)]
@@ -133,7 +133,7 @@ public sealed class SymbolTools(
         int column = 0) =>
         hierarchy.HierarchyAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), cancellationToken);
 
-    [McpServerTool(Name = "get_generated_code")]
+    [McpServerTool(Name = "get_generated_code", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetGeneratedCode)]
     public Task<GeneratedCodePage> GetGeneratedCode(
         [Description(ParameterDescriptions.Solution)]

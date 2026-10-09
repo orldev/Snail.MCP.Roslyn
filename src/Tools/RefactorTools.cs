@@ -7,7 +7,7 @@ namespace Snail.MCP.Roslyn.Tools;
 [McpServerToolType]
 public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer structure, IComponentExtractor extractor)
 {
-    [McpServerTool(Name = "extract_component")]
+    [McpServerTool(Name = "extract_component", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.ExtractComponent)]
     public Task<ExtractionPlan> ExtractComponent(
         [Description(ParameterDescriptions.Solution)]
@@ -34,7 +34,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
             new ExtractionRequest(file, startLine, endLine, name, substitutions, code, tag, newFile),
             cancellationToken);
 
-    [McpServerTool(Name = "rename_symbol")]
+    [McpServerTool(Name = "rename_symbol", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.RenameSymbol)]
     public Task<RenamePlan> RenameSymbol(
         [Description(ParameterDescriptions.Solution)]
@@ -67,7 +67,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
             new RenameScope(renameOverloads, renameFile, searchComments, searchStrings),
             cancellationToken);
 
-    [McpServerTool(Name = "rename_namespace")]
+    [McpServerTool(Name = "rename_namespace", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.RenameNamespace)]
     public Task<EditPlan> RenameNamespace(
         [Description(ParameterDescriptions.Solution)]
@@ -81,7 +81,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
         bool updateFolders = true) =>
         structure.RenameNamespaceAsync(solutionId, oldNamespace, newNamespace, updateFolders, cancellationToken);
 
-    [McpServerTool(Name = "move_type")]
+    [McpServerTool(Name = "move_type", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.MoveType)]
     public Task<EditPlan> MoveType(
         [Description(ParameterDescriptions.Solution)]
@@ -108,7 +108,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
             targetNamespace,
             cancellationToken);
 
-    [McpServerTool(Name = "organize_usings")]
+    [McpServerTool(Name = "organize_usings", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.OrganizeUsings)]
     public Task<EditPlan> OrganizeUsings(
         [Description(ParameterDescriptions.Solution)]
@@ -118,7 +118,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
         string? scope = null) =>
         structure.OrganizeUsingsAsync(solutionId, scope, cancellationToken);
 
-    [McpServerTool(Name = "change_signature")]
+    [McpServerTool(Name = "change_signature", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.ChangeSignature)]
     public Task<EditPlan> ChangeSignature(
         [Description(ParameterDescriptions.Solution)]

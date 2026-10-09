@@ -7,7 +7,7 @@ namespace Snail.MCP.Roslyn.Tools;
 [McpServerToolType]
 public sealed class ScriptTools(IScriptRunner scripts)
 {
-    [McpServerTool(Name = "run_script")]
+    [McpServerTool(Name = "run_script", ReadOnly = false, Destructive = true, OpenWorld = true)]
     [Description(ToolDescriptions.RunScript)]
     public Task<ScriptResult> RunScript(
         [Description(ParameterDescriptions.Solution)]
