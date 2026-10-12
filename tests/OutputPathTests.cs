@@ -23,19 +23,19 @@ public sealed class OutputPathTests : IDisposable
         }
         """;
 
-    private readonly string folder = Directory.CreateTempSubdirectory("roslyn-output").FullName;
+    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-output").FullName;
 
     [Fact]
     public async Task ReadAsync_FileUnderAFolderNamedBinInsideTheSources_ReportsItsErrors()
     {
-        var authored = Path.Combine(folder, "Features", "bin");
+        var authored = Path.Combine(_folder, "Features", "bin");
         Directory.CreateDirectory(authored);
 
-        await File.WriteAllTextAsync(Path.Combine(folder, "Probe.csproj"), Project);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Probe.csproj"), Project);
         await File.WriteAllTextAsync(Path.Combine(authored, "Item.cs"), Broken);
 
         using var fixture = new AnalysisFixture();
-        var report = await fixture.Host.LoadAsync(folder, CancellationToken.None);
+        var report = await fixture.Host.LoadAsync(_folder, CancellationToken.None);
 
         var page = await fixture.Diagnostics.ReadAsync(
             report.Id, null, IssueSeverity.Error, 50, false, CancellationToken.None);
@@ -43,5 +43,5 @@ public sealed class OutputPathTests : IDisposable
         Assert.Contains(page.Items, issue => issue.File?.EndsWith("Item.cs", StringComparison.Ordinal) == true);
     }
 
-    public void Dispose() => Directory.Delete(folder, recursive: true);
+    public void Dispose() => Directory.Delete(_folder, recursive: true);
 }

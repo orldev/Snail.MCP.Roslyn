@@ -45,25 +45,25 @@ internal static class DocumentWalker
     private sealed class Pass(SemanticModel model, string? authored, CancellationToken cancellationToken)
         : CSharpSyntaxWalker
     {
-        private readonly List<ISymbol> declarations = [];
+        private readonly List<ISymbol> _declarations = [];
 
-        private readonly Dictionary<ISymbol, int> uses = new(SymbolEqualityComparer.Default);
+        private readonly Dictionary<ISymbol, int> _uses = new(SymbolEqualityComparer.Default);
 
-        private readonly HashSet<NamespaceEdge> edges = [];
+        private readonly HashSet<NamespaceEdge> _edges = [];
 
-        private readonly List<DeclaredNamespace> namespaces = [];
+        private readonly List<DeclaredNamespace> _namespaces = [];
 
-        private readonly List<RegistrationFact> registrations = [];
+        private readonly List<RegistrationFact> _registrations = [];
 
-        private readonly Stack<(ISymbol? Type, string Namespace)> containers = new();
+        private readonly Stack<(ISymbol? Type, string Namespace)> _containers = new();
 
         public DocumentFacts Facts() =>
             new(
-                declarations,
-                [.. uses.Select(use => new SymbolUse(use.Key, use.Value))],
-                [.. edges],
-                namespaces,
-                registrations);
+                _declarations,
+                [.. _uses.Select(use => new SymbolUse(use.Key, use.Value))],
+                [.. _edges],
+                _namespaces,
+                _registrations);
 
         public override void Visit(SyntaxNode? node)
         {
@@ -76,14 +76,14 @@ internal static class DocumentWalker
                     Enter(type);
                     return;
                 case BaseNamespaceDeclarationSyntax declaration when authored is null:
-                    namespaces.Add(new DeclaredNamespace(declaration.Name.ToString(), Line(declaration.Name)));
+                    _namespaces.Add(new DeclaredNamespace(declaration.Name.ToString(), Line(declaration.Name)));
                     break;
                 case SimpleNameSyntax name:
                     Use(name);
                     break;
                 case InvocationExpressionSyntax call when authored is null:
                     if (RoslynContainer.Registered(model, call, cancellationToken) is { } registration)
-                        registrations.Add(registration);
+                        _registrations.Add(registration);
 
                     break;
                 default:
@@ -103,21 +103,21 @@ internal static class DocumentWalker
             if (declared is not null)
                 Declare(type, declared);
 
-            containers.Push(declared?.ContainingNamespace is { } owner
+            _containers.Push(declared?.ContainingNamespace is { } owner
                 ? (declared, owner.ToDisplayString())
                 : (null, string.Empty));
 
             base.Visit(type);
-            containers.Pop();
+            _containers.Pop();
         }
 
         private void Declare(SyntaxNode declaration, ISymbol declared)
         {
-            if (authored is not null && !Authored(declaration))
+            if (authored is not null && !IsAuthored(declaration))
                 return;
 
             if (SolutionUsage.Declares(declared) is { } target)
-                declarations.Add(target);
+                _declarations.Add(target);
         }
 
         private void Use(SimpleNameSyntax name)
@@ -126,10 +126,10 @@ internal static class DocumentWalker
                 return;
 
             if (authored is null
-                && containers.TryPeek(out var container)
+                && _containers.TryPeek(out var container)
                 && container.Type is not null
                 && NamespaceGraph.Edge(container.Namespace, container.Type, symbol) is { } edge)
-                edges.Add(edge);
+                _edges.Add(edge);
 
             Count(symbol);
         }
@@ -139,13 +139,13 @@ internal static class DocumentWalker
             if (SolutionUsage.Counts(symbol) is not { } target)
                 return;
 
-            uses[target] = uses.TryGetValue(target, out var seen) ? seen + 1 : 1;
+            _uses[target] = _uses.TryGetValue(target, out var seen) ? seen + 1 : 1;
 
             if (target is IMethodSymbol { MethodKind: MethodKind.Constructor, ContainingType: { } owner })
                 Count(owner);
         }
 
-        private bool Authored(SyntaxNode declaration)
+        private bool IsAuthored(SyntaxNode declaration)
         {
             var span = MarkupMap.AuthoredSpan(declaration);
 

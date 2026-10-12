@@ -50,8 +50,8 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
             var unloaded = await fixture.Host.UnloadAsync(report.Id, CancellationToken.None);
             var again = await fixture.Host.UnloadAsync(report.Id, CancellationToken.None);
 
-            Assert.True(unloaded.Unloaded);
-            Assert.False(again.Unloaded);
+            Assert.True(unloaded.WasUnloaded);
+            Assert.False(again.WasUnloaded);
             Assert.Contains(unloaded.Notes, note => note.Contains("Load it again", StringComparison.Ordinal));
 
             await Assert.ThrowsAsync<InvalidOperationException>(() =>

@@ -73,7 +73,7 @@ internal sealed class RoslynSolutionHost(
         catch (Exception error)
         {
             workspace.Dispose();
-            log.LogError(error, "Failed to open {Entry}", entry);
+            Log.OpenFailed(log, error, entry);
 
             return Unopened(target, error.Message);
         }
@@ -119,7 +119,7 @@ internal sealed class RoslynSolutionHost(
         var unrestored = ProjectRestore.Missing(solution);
         var readiness = Decide(projects, compiled, unrestored.Count == 0);
 
-        log.LogInformation("Reused {Entry} as {Identity}", entry, identity);
+        Log.Reused(log, entry, identity);
 
         return new WorkspaceReport(
             identity,
@@ -135,7 +135,7 @@ internal sealed class RoslynSolutionHost(
 
     public async Task<UnloadReport> UnloadAsync(string solutionId, CancellationToken cancellationToken)
     {
-        var removed = await cache.RemoveAsync(solutionId, cancellationToken);
+        var removed = await cache.TryRemoveAsync(solutionId, cancellationToken);
 
         return new UnloadReport(
             solutionId,

@@ -5,13 +5,13 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 /// <summary>Counts every use of every source declaration, so solution-wide questions cost no walk of their own.</summary>
 internal sealed class SolutionUsage
 {
-    private readonly Dictionary<string, UsageEntry> entries = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, UsageEntry> _entries = new(StringComparer.Ordinal);
 
-    public IReadOnlyCollection<UsageEntry> Entries => entries.Values;
+    public IReadOnlyCollection<UsageEntry> Entries => _entries.Values;
 
     /// <summary>The symbol a declaration registers under, or null when its kind is not one this index tracks.</summary>
     public static ISymbol? Declares(ISymbol symbol) =>
-        Tracked(symbol) ? symbol.OriginalDefinition : null;
+        IsTracked(symbol) ? symbol.OriginalDefinition : null;
 
     /// <summary>The symbol a name counts against: an extension call counts for the method as declared, and a
     /// symbol declared outside the source is nobody's declaration to report.</summary>
@@ -19,7 +19,7 @@ internal sealed class SolutionUsage
     {
         var target = symbol is IMethodSymbol { ReducedFrom: { } reduced } ? reduced : symbol;
 
-        if (!Tracked(target))
+        if (!IsTracked(target))
             return null;
 
         var definition = target.OriginalDefinition;
@@ -43,11 +43,11 @@ internal sealed class SolutionUsage
     }
 
     public UsageEntry? For(ISymbol symbol) =>
-        entries.GetValueOrDefault(SymbolFacts.IdOf(symbol.OriginalDefinition));
+        _entries.GetValueOrDefault(SymbolFacts.IdOf(symbol.OriginalDefinition));
 
     public int CountFor(ISymbol symbol) => For(symbol)?.References ?? 0;
 
-    private static bool Tracked(ISymbol symbol) =>
+    private static bool IsTracked(ISymbol symbol) =>
         symbol.Kind is SymbolKind.NamedType or SymbolKind.Method or SymbolKind.Property
             or SymbolKind.Field or SymbolKind.Event;
 
@@ -55,11 +55,11 @@ internal sealed class SolutionUsage
     {
         var id = SymbolFacts.IdOf(symbol);
 
-        if (entries.TryGetValue(id, out var existing))
+        if (_entries.TryGetValue(id, out var existing))
             return existing;
 
         var created = new UsageEntry(symbol);
-        entries[id] = created;
+        _entries[id] = created;
 
         return created;
     }

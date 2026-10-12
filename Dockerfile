@@ -1,7 +1,7 @@
 # The server as a container: one per machine, standing behind every agent on it.
 #
 #   docker build -t snail/s3l-roslyn-mcp .
-#   docker run -p 8821:8821 -e Workspace__Port=8821 -v workspaces:/workspaces -v nuget:/nuget snail/s3l-roslyn-mcp
+#   docker run -p 8821:8821 -e SNAIL_MCP_ROSLYN_PORT=8821 -v workspaces:/workspaces -v nuget:/nuget snail/s3l-roslyn-mcp
 #
 # Two things this image cannot do without.
 #
@@ -22,7 +22,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0
 WORKDIR /app
 COPY --from=build /app .
 
-ENV Workspace__Port=8821 \
+ENV SNAIL_MCP_ROSLYN_PORT=8821 \
     NUGET_PACKAGES=/nuget \
     DOTNET_CLI_TELEMETRY_OPTOUT=1
 EXPOSE 8821

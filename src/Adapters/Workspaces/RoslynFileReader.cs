@@ -108,6 +108,8 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IOpt
     }
 
     /// <summary>A .razor or .cshtml file of the solution: text, mapped diagnostics, @code members, tags and directives.</summary>
+    /// <remarks>Which of the two ways the file was read — the Razor grammar or a text scan — changes what the answer
+    /// can be trusted about, so it is stated in the notes.</remarks>
     private async Task<FileView> MarkupViewAsync(
         Solution solution,
         TextDocument markup,
@@ -131,7 +133,6 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IOpt
 
         outline.Sort((left, right) => left.Line.CompareTo(right.Line));
 
-        // Which of the two ways the file was read changes what the answer can be trusted about, so it is stated.
         var grammar = RazorMarkup.Parse(text, markup.FilePath!) is not null;
 
         List<string> notes = [MarkupViewNote, grammar ? GrammarNote : TextScanNote, .. Notes(solution)];
@@ -151,7 +152,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IOpt
             start,
             end,
             rendered,
-            new IssuePage([.. compiled.Items, .. costs], compiled.Total + costs.Count, compiled.Truncated),
+            new IssuePage([.. compiled.Items, .. costs], compiled.Total + costs.Count, compiled.IsTruncated),
             outline,
             DirectivesIn(text),
             notes);

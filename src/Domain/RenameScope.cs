@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Domain;
 
 public sealed record RenameScope(
-    bool RenameOverloads = true,
-    bool RenameFile = true,
-    bool SearchComments = false,
-    bool SearchStrings = false);
+    bool RenamesOverloads = true,
+    bool RenamesFile = true,
+    bool SearchesComments = false,
+    bool SearchesStrings = false);

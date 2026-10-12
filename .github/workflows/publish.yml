@@ -1,0 +1,35 @@
+name: release to NuGet
+
+# The shared server release of Snail.Sdk (docs/publishing.md): Roslyn and MSBuild load code at run time, so the server
+# ships as one framework-dependent tool package. A v* tag releases; run by hand, it builds and checks the package and
+# pushes only when asked to.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version to pack, such as 0.2.0 or 0.2.0-preview.1
+        required: true
+      push:
+        description: Push the packages to NuGet
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    permissions:
+      contents: read
+      id-token: write
+    uses: orldev/Snail.Sdk/.github/workflows/mcp-publish.yml@v1
+    with:
+      name: Snail.MCP.Roslyn
+      native: false
+      contract-variable: SNAIL_ROSLYN_SERVER
+      version: ${{ inputs.version }}
+      push: ${{ github.event_name == 'push' || inputs.push }}
+    secrets: inherit

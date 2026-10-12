@@ -5,9 +5,9 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 /// <summary>Every index a solution-wide question needs, assembled from one walk of each tree.</summary>
 internal sealed class SolutionFacts
 {
-    private readonly Dictionary<DocumentId, IReadOnlyList<DeclaredNamespace>> namespaces = [];
+    private readonly Dictionary<DocumentId, IReadOnlyList<DeclaredNamespace>> _namespaces = [];
 
-    private readonly List<(string File, RegistrationFact Registration)> registrations = [];
+    private readonly List<(string File, RegistrationFact Registration)> _registrations = [];
 
     private SolutionFacts()
     {
@@ -18,7 +18,7 @@ internal sealed class SolutionFacts
     public NamespaceGraph Graph { get; } = new();
 
     /// <summary>Every container registration in the solution, each with the file that states it.</summary>
-    public IReadOnlyList<(string File, RegistrationFact Registration)> Registrations => registrations;
+    public IReadOnlyList<(string File, RegistrationFact Registration)> Registrations => _registrations;
 
     public static async Task<SolutionFacts> BuildAsync(Solution solution, CancellationToken cancellationToken)
     {
@@ -44,8 +44,8 @@ internal sealed class SolutionFacts
 
                 facts.Usage.Add(read, project.Name, file);
                 facts.Graph.Add(read);
-                facts.namespaces[document.Id] = read.Namespaces;
-                facts.registrations.AddRange(read.Registrations.Select(registration => (file, registration)));
+                facts._namespaces[document.Id] = read.Namespaces;
+                facts._registrations.AddRange(read.Registrations.Select(registration => (file, registration)));
             }
 
             foreach (var tree in compilation.SyntaxTrees)
@@ -65,5 +65,5 @@ internal sealed class SolutionFacts
 
     /// <summary>The namespaces a document declares, in the order it declares them.</summary>
     public IReadOnlyList<DeclaredNamespace> NamespacesIn(DocumentId document) =>
-        namespaces.GetValueOrDefault(document, []);
+        _namespaces.GetValueOrDefault(document, []);
 }

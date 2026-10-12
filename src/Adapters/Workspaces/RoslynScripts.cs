@@ -13,7 +13,7 @@ internal sealed class RoslynScripts(SolutionCache cache, ScriptTally tally, IOpt
     : IScriptRunner
 {
     private const string DisabledNote =
-        "Scripting is switched off for this server. Set Workspace:AllowScripts to enable it. "
+        "Scripting is switched off for this server. Set SNAIL_MCP_ROSLYN_ALLOW_SCRIPTS to enable it. "
         + "A script runs in this process with this process's rights: the container, or its absence, is the only boundary.";
 
     private const string RunawayNote =
@@ -44,6 +44,11 @@ internal sealed class RoslynScripts(SolutionCache cache, ScriptTally tally, IOpt
             "Microsoft.CodeAnalysis.CSharp.Syntax",
             "Microsoft.CodeAnalysis.FindSymbols");
 
+    /// <summary>Runs a C# script against the solution, within the configured time limit.</summary>
+    /// <remarks>The script is counted before the run, not after: what the process will never give back is the assembly
+    /// the compilation emits, and it is emitted whether the script then succeeds, throws or runs away. It is started on
+    /// a thread of its own: EvaluateAsync compiles and runs the body synchronously up to the first await, so calling it
+    /// on the request would hold the request until the script chose to end.</remarks>
     public async Task<ScriptResult> RunAsync(string solutionId, string code, CancellationToken cancellationToken)
     {
         if (!options.Value.AllowScripts)
@@ -52,8 +57,6 @@ internal sealed class RoslynScripts(SolutionCache cache, ScriptTally tally, IOpt
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
         var context = await ScriptContext.CreateAsync(solution, cancellationToken);
 
-        // Counted before the run, not after: what the process will never give back is the assembly the
-        // compilation emits, and it is emitted whether the script then succeeds, throws or runs away.
         tally.Counted();
 
         var started = Stopwatch.GetTimestamp();
@@ -64,8 +67,6 @@ internal sealed class RoslynScripts(SolutionCache cache, ScriptTally tally, IOpt
 
         try
         {
-            // Started on a thread of its own: EvaluateAsync compiles and runs the body synchronously up to the
-            // first await, so calling it here would hold this request until the script chose to end.
             var evaluation = Task.Run(
                 () => CSharpScript.EvaluateAsync<object?>(code, Options, context, typeof(ScriptContext), deadline.Token),
                 CancellationToken.None);

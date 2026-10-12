@@ -69,8 +69,8 @@ silently renamed half of them would be the original problem in new packaging.
 
 Пакеты сервер восстанавливает сам: рабочую копию задачи клонирует воркер и никогда не собирает, поэтому
 `project.assets.json` в ней нет, а без него всякий семантический ответ занижен. Раньше сервер только писал
-об этом в примечании — модели, которая сделать с ним ничего не могла. `Workspace:RestoreOnLoad` выключает
-это для развёртывания, которое восстанавливает пакеты иначе; `Workspace:RestoreSeconds` (300) — предел,
+об этом в примечании — модели, которая сделать с ним ничего не могла. `SNAIL_MCP_ROSLYN_RESTORE_ON_LOAD` выключает
+это для развёртывания, которое восстанавливает пакеты иначе; `SNAIL_MCP_ROSLYN_RESTORE_SECONDS` (300) — предел,
 после которого загрузка идёт дальше без пакетов и честно об этом говорит.
 
 ## Requirements
@@ -81,23 +81,27 @@ The .NET SDK must be installed: the server loads MSBuild from it through `MSBuil
 
 ## Configuration
 
-```json
-{
-  "Workspace": {
-    "Port": 8817,
-    "RestoreOnLoad": true,
-    "RestoreSeconds": 300,
-    "Roots": { "/caller/path": "/path/inside/this/process" },
-    "MaxIssues": 200,
-    "MaxFindings": 200,
-    "AllowScripts": true,
-    "ScriptTimeoutSeconds": 30,
-    "AnalyzerPolicy": "default"
-  }
-}
+Every setting is an environment variable under `SNAIL_MCP_ROSLYN_`, and nothing else is read — no `appsettings.json`,
+no command line: a file lying in the working directory of whoever started the server is not a setting of it.
+`.mcp/server.json` lists them all with their defaults.
+
+```bash
+SNAIL_MCP_ROSLYN_PORT=8817                  # unset: stdio
+SNAIL_MCP_ROSLYN_SESSION_ROOTS__0=/workspaces
+SNAIL_MCP_ROSLYN_RESTORE_ON_LOAD=true
+SNAIL_MCP_ROSLYN_RESTORE_SECONDS=300
+SNAIL_MCP_ROSLYN_MAX_ISSUES=200
+SNAIL_MCP_ROSLYN_MAX_FINDINGS=200
+SNAIL_MCP_ROSLYN_MAX_RESPONSE_CHARS=50000
+SNAIL_MCP_ROSLYN_ALLOW_SCRIPTS=true
+SNAIL_MCP_ROSLYN_SCRIPT_TIMEOUT_SECONDS=30
+SNAIL_MCP_ROSLYN_ANALYZER_POLICY=default
+SNAIL_MCP_ROSLYN_MEMORY_ADVICE_MEGABYTES=2048
+SNAIL_MCP_ROSLYN_MAX_SOLUTIONS=4
+SNAIL_MCP_ROSLYN_MAX_RUN_STEPS=10
 ```
 
-`Port` decides the shape of the process. Unset, the server speaks stdio to whatever started it, belongs
+`PORT` decides the shape of the process. Unset, the server speaks stdio to whatever started it, belongs
 to that one caller and reaches wherever it does — the shape a desktop client installs. Set, it listens on
 every interface and serves sessions at `/mcp`, each naming the copy it works in:
 `http://mcp-roslyn:8817/mcp?root=/workspaces/task-7`. One server then stands behind every agent on the
@@ -108,9 +112,10 @@ A session opened at a root **this machine does not have** is refused on the spot
 happen is an agent on one machine reaching the server of another: it would answer, about a solution that
 is not the task's copy, and a wrong answer shaped like a right one is far worse than an error.
 
-`Roots` maps the caller's filesystem to this process's, for running the server in a container. Empty means the two coincide.
-`AllowScripts` governs `run_script`, which executes C# in this process with this process's rights: the container,
-or the absence of one, is the only boundary. `AnalyzerPolicy` decides where analyzer assemblies may be loaded from —
+`SNAIL_MCP_ROSLYN_ROOTS__<caller root>=<root in this process>` maps the caller's filesystem to this process's, for running
+the server in a container. Empty means the two coincide.
+`ALLOW_SCRIPTS` governs `run_script`, which executes C# in this process with this process's rights: the container,
+or the absence of one, is the only boundary. `ANALYZER_POLICY` decides where analyzer assemblies may be loaded from —
 an analyzer is arbitrary code: `strict` allows the package cache and the SDK, `default` adds the solution's own tree,
 `all` disables the check.
 

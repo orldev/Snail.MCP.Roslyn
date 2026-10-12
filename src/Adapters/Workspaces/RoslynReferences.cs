@@ -25,7 +25,7 @@ internal sealed class RoslynReferences(IPathMap paths, SolutionCache cache) : IR
         "Every use found lies in generated code the caller cannot edit, so none are listed. "
         + "This is not an absence of uses.";
 
-    private readonly SymbolResolver resolver = new(paths);
+    private readonly SymbolResolver _resolver = new(paths);
 
     public async Task<ReferencePage> FindAsync(
         string solutionId,
@@ -34,7 +34,7 @@ internal sealed class RoslynReferences(IPathMap paths, SolutionCache cache) : IR
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var symbol = await resolver.ResolveAsync(solution, query, cancellationToken);
+        var symbol = await _resolver.ResolveAsync(solution, query, cancellationToken);
 
         if (symbol is null)
             return new ReferencePage(query.Id ?? string.Empty, [], 0, false, ["Symbol not found. Use search_symbols first."]);

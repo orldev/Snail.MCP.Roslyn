@@ -48,10 +48,10 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         + "string literals, comments, container registrations by name, or unrelated symbols. "
         + "They are listed, not changed. Decide each one yourself.";
 
-    private readonly SymbolResolver resolver = new(paths);
-    private readonly SolutionEdits editor = new(paths);
-    private readonly TextScanner scanner = new(paths);
-    private readonly MarkupEdits markup = new(paths);
+    private readonly SymbolResolver _resolver = new(paths);
+    private readonly SolutionEdits _editor = new(paths);
+    private readonly TextScanner _scanner = new(paths);
+    private readonly MarkupEdits _markup = new(paths);
 
     public async Task<RenamePlan> PlanAsync(
         string solutionId,
@@ -61,7 +61,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var (symbol, candidates) = await resolver.PickAsync(solution, query, cancellationToken);
+        var (symbol, candidates) = await _resolver.PickAsync(solution, query, cancellationToken);
 
         if (symbol is null)
             return Empty(query, newName, candidates, candidates.Count > 1 ? AmbiguousNote : "Symbol not found. Use search_symbols first.");
@@ -71,10 +71,10 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
 
         var options = new SymbolRenameOptions
         {
-            RenameOverloads = scope.RenameOverloads,
-            RenameInStrings = scope.SearchStrings,
-            RenameInComments = scope.SearchComments,
-            RenameFile = scope.RenameFile
+            RenameOverloads = scope.RenamesOverloads,
+            RenameInStrings = scope.SearchesStrings,
+            RenameInComments = scope.SearchesComments,
+            RenameFile = scope.RenamesFile
         };
 
         Solution renamed;
@@ -88,12 +88,12 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
             return await TextOnlyAsync(solution, symbol, newName, $"{FailedNote} {error.Message}", cancellationToken);
         }
 
-        var edits = WithFileRename(await editor.BetweenAsync(solution, renamed, cancellationToken), symbol, newName, scope);
+        var edits = WithFileRename(await _editor.BetweenAsync(solution, renamed, cancellationToken), symbol, newName, scope);
         var (markupEdits, markupNotes) = await MarkupSideAsync(solution, symbol, newName, scope, markupOnly: true, cancellationToken);
 
         edits = [.. edits, .. markupEdits];
 
-        var unhandled = await scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
+        var unhandled = await _scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
         var conflicts = await SolutionEdits.ConflictsAsync(solution, renamed, cancellationToken);
 
         List<string> notes = [.. markupNotes];
@@ -124,13 +124,13 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         if (MarkupEdits.IsComponent(symbol)
             && await MarkupEdits.DeclaringMarkupAsync(solution, symbol, cancellationToken) is { } declaring)
         {
-            if (!await MarkupEdits.UniquelyNamedAsync(solution, symbol, cancellationToken))
+            if (!await MarkupEdits.IsUniquelyNamedAsync(solution, symbol, cancellationToken))
                 return await TextOnlyAsync(solution, symbol, newName, $"{SharedNameNote} {GeneratedNote}", cancellationToken);
 
             return await ComponentPlanAsync(solution, symbol, newName, declaring, scope, cancellationToken);
         }
 
-        if (DeclaredInMarkup(symbol))
+        if (IsDeclaredInMarkup(symbol))
             return await MappedPlanAsync(solution, symbol, newName, cancellationToken);
 
         return await TextOnlyAsync(solution, symbol, newName, GeneratedNote, cancellationToken);
@@ -151,12 +151,12 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
 
         MarkupEdits.Merge(spans, mapped);
 
-        var (edits, skipped) = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
+        var (edits, skipped) = await _markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
 
-        if (scope.RenameFile)
-            edits = editor.WithFileRename(edits, declaring.Authored, newName);
+        if (scope.RenamesFile)
+            edits = _editor.WithFileRename(edits, declaring.Authored, newName);
 
-        var unhandled = await scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
+        var unhandled = await _scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
 
         List<string> notes = [ComponentNote, .. Scanned(scanned), .. Skipped(skipped, symbol.Name)];
 
@@ -182,8 +182,8 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         CancellationToken cancellationToken)
     {
         var (spans, synthesized) = await MarkupEdits.MappedSpansAsync(solution, symbol, markupOnly: false, cancellationToken);
-        var (edits, skipped) = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
-        var unhandled = await scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
+        var (edits, skipped) = await _markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
+        var unhandled = await _scanner.UnhandledAsync(solution, symbol.Name, SolutionEdits.Touched(edits), cancellationToken);
 
         List<string> notes = [MappedMemberNote, .. ConventionNotes(symbol), .. Skipped(skipped, symbol.Name)];
 
@@ -210,7 +210,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         IReadOnlyList<string> scanned = [];
 
         if (MarkupEdits.IsComponent(symbol)
-            && await MarkupEdits.UniquelyNamedAsync(solution, symbol, cancellationToken)
+            && await MarkupEdits.IsUniquelyNamedAsync(solution, symbol, cancellationToken)
             && DeclaringProject(solution, symbol) is { } declaring)
         {
             var tags = await MarkupEdits.TagSpansAsync(solution, declaring, symbol.Name, cancellationToken);
@@ -219,12 +219,12 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
             scanned = tags.Scanned;
         }
 
-        var (edits, skipped) = await markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
+        var (edits, skipped) = await _markup.ComposeAsync(solution, spans, symbol.Name, newName, cancellationToken);
 
         if (MarkupEdits.IsComponent(symbol)
-            && scope.RenameFile
+            && scope.RenamesFile
             && await MarkupEdits.DeclaringMarkupAsync(solution, symbol, cancellationToken) is { } authored)
-            edits = editor.WithFileRename(edits, authored.Authored, newName);
+            edits = _editor.WithFileRename(edits, authored.Authored, newName);
 
         List<string> notes = [.. ConventionNotes(symbol), .. Scanned(scanned), .. Skipped(skipped, symbol.Name)];
 
@@ -241,7 +241,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
             .OfType<Project>()
             .FirstOrDefault();
 
-    private static bool DeclaredInMarkup(ISymbol symbol) =>
+    private static bool IsDeclaredInMarkup(ISymbol symbol) =>
         symbol is IPropertySymbol or IMethodSymbol or IFieldSymbol or IEventSymbol
         && symbol.Locations.Any(location => location.IsInSource
             && location.GetMappedLineSpan() is { HasMappedPath: true } span
@@ -289,8 +289,8 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         string note,
         CancellationToken cancellationToken)
     {
-        List<TextualMatch> unhandled = [.. scanner.Declaring(solution, symbol.Name)];
-        unhandled.AddRange(await scanner.UnhandledAsync(solution, symbol.Name, [], cancellationToken));
+        List<TextualMatch> unhandled = [.. _scanner.Declaring(solution, symbol.Name)];
+        unhandled.AddRange(await _scanner.UnhandledAsync(solution, symbol.Name, [], cancellationToken));
 
         return new RenamePlan(SymbolFacts.IdOf(symbol), symbol.Name, newName, [], unhandled, [], [], [note]);
     }
@@ -301,7 +301,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
         string newName,
         RenameScope scope)
     {
-        if (!scope.RenameFile || symbol is not INamedTypeSymbol)
+        if (!scope.RenamesFile || symbol is not INamedTypeSymbol)
             return edits;
 
         var declaring = symbol.Locations
@@ -310,7 +310,7 @@ internal sealed class RoslynRenamer(IPathMap paths, SolutionCache cache) : IRena
             .OfType<string>()
             .FirstOrDefault(path => Path.GetFileNameWithoutExtension(path).Equals(symbol.Name, StringComparison.Ordinal));
 
-        return declaring is null ? edits : editor.WithFileRename(edits, declaring, newName);
+        return declaring is null ? edits : _editor.WithFileRename(edits, declaring, newName);
     }
 
     private static RenamePlan Empty(SymbolQuery query, string newName, IReadOnlyList<SymbolMatch> candidates, string note) =>

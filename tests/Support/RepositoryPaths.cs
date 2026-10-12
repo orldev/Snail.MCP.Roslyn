@@ -13,7 +13,7 @@ public static class RepositoryPaths
 
         while (directory is not null)
         {
-            if (directory.GetFiles("*.sln").Length > 0)
+            if (directory.GetFiles("*.slnx").Length > 0)
                 return directory.FullName;
 
             directory = directory.Parent;

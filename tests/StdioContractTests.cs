@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Roslyn.Tests;
 
@@ -18,6 +19,20 @@ public sealed class StdioContractTests
     /// tool of it out. A kilobyte is the price of being asked a question instead of being skipped.
     /// </remarks>
     private const int Ceiling = 31_000;
+
+    /// <summary>
+    /// The guard rules of every Snail server, on the list a model receives: names in snake case and listed once, the tool
+    /// and every parameter described, read-only or destructive stated, every allowed value named, English.
+    /// </summary>
+    [Fact]
+    public async Task Tools_AsListed_KeepTheGuardRules()
+    {
+        await using var client = await ServerProgram.StartAsync("Snail.MCP.Roslyn", "SNAIL_ROSLYN_SERVER");
+
+        var listed = await client.ListToolsAsync();
+
+        Assert.Empty(ToolGuards.Problems(listed.Select(tool => tool.ProtocolTool)));
+    }
 
     [Fact]
     public async Task StandardOutput_AfterInitialize_CarriesOnlyJsonRpcMessages()
@@ -67,6 +82,10 @@ public sealed class StdioContractTests
         Assert.Contains("get_diagnostics, not `dotnet build`", instructions, StringComparison.Ordinal);
     }
 
+    /// <remarks>The progress sink is a parameter of the method, not of the tool: the caller asks for notifications with
+    /// a progressToken, and a schema property named after it would be a second, wrong way to ask. The catalogue is not
+    /// sent once: the client carries it in every request it makes, so its size is a standing charge on the caller's
+    /// context. A tool or a sentence added here is paid for all day.</remarks>
     [Fact]
     public async Task ToolsList_OverStdioTransport_ReturnsWholeDescribedCatalogue()
     {
@@ -94,8 +113,6 @@ public sealed class StdioContractTests
             tools.EnumerateArray(),
             tool => Assert.False(string.IsNullOrWhiteSpace(tool.GetProperty("description").GetString())));
 
-        // The progress sink is a parameter of the method, not of the tool: the caller asks for notifications
-        // with a progressToken, and a schema property named after it would be a second, wrong way to ask.
         Assert.All(
             tools.EnumerateArray(),
             tool => Assert.DoesNotContain(
@@ -103,8 +120,6 @@ public sealed class StdioContractTests
                 tool.GetProperty("inputSchema").GetRawText(),
                 StringComparison.OrdinalIgnoreCase));
 
-        // The catalogue is not sent once: the client carries it in every request it makes, so its size is a
-        // standing charge on the caller's context. A tool or a sentence added here is paid for all day.
         Assert.True(
             tools.GetRawText().Length < Ceiling,
             $"The tool catalogue is {tools.GetRawText().Length} bytes against a ceiling of {Ceiling}. Shorten what was "
@@ -194,8 +209,8 @@ public sealed class StdioContractTests
     }
 
     /// <summary>
-    /// Три вопроса одним заходом вместо трёх: ровно то, ради чего run_tools и существует. Шаги здесь
-    /// нарочно такие, которым не нужно загруженное решение, — проверяется оболочка, а не Roslyn.
+    /// Three questions in one round trip instead of three: exactly what run_tools exists for. The steps here
+    /// deliberately need no loaded solution: what is checked is the shell, not Roslyn.
     /// </summary>
     [Fact]
     public async Task RunTools_SeveralSteps_AnswersEachOfThemInOneCall()
@@ -223,7 +238,7 @@ public sealed class StdioContractTests
         Assert.Contains("rename_symbol", said, StringComparison.Ordinal);
     }
 
-    /// <summary>Шаг, называющий несуществующий инструмент, останавливает заход и говорит, куда смотреть.</summary>
+    /// <summary>A step naming a tool that does not exist stops the run and says where to look.</summary>
     [Fact]
     public async Task RunTools_AStepNamingNoToolOfThisServer_StopsAndSaysWhereToLook()
     {
@@ -260,7 +275,7 @@ public sealed class StdioContractTests
     [Fact]
     public async Task CallTool_AnswerOverTheResponseBudget_IsRefusedWithItsSize()
     {
-        using var server = Start(("Workspace__MaxResponseChars", "200"));
+        using var server = Start(("SNAIL_MCP_ROSLYN_MAX_RESPONSE_CHARS", "200"));
 
         await server.StandardInput.WriteLineAsync(
             """
@@ -345,14 +360,12 @@ public sealed class StdioContractTests
         return null;
     }
 
+    /// <summary>The server as built beside the tests, or the program <c>SNAIL_ROSLYN_SERVER</c> names, such as a publication of it.</summary>
     private static Process Start(params (string Name, string Value)[] environment)
     {
-        var server = Path.Combine(
-            RepositoryPaths.Root, "src", "bin", Configuration(), "net10.0", "Snail.MCP.Roslyn.dll");
+        var (command, arguments) = ServerProgram.Command("Snail.MCP.Roslyn", "SNAIL_ROSLYN_SERVER");
 
-        Assert.True(File.Exists(server), $"Build the server before running this test: {server}");
-
-        var start = new ProcessStartInfo("dotnet", server)
+        var start = new ProcessStartInfo(command, arguments)
         {
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
@@ -364,11 +377,4 @@ public sealed class StdioContractTests
 
         return Process.Start(start)!;
     }
-
-    private static string Configuration() =>
-#if DEBUG
-        "Debug";
-#else
-        "Release";
-#endif
 }

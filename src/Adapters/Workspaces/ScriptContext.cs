@@ -7,7 +7,7 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 /// <summary>What a script sees: the loaded solution and the few helpers that save it from boilerplate.</summary>
 public sealed class ScriptContext
 {
-    private readonly StringBuilder output = new();
+    private readonly StringBuilder _output = new();
 
     private ScriptContext(Solution solution, IReadOnlyList<Compilation> compilations)
     {
@@ -17,7 +17,7 @@ public sealed class ScriptContext
 
     public Solution Solution { get; }
 
-    public string Output => output.ToString();
+    public string Output => _output.ToString();
 
     public IReadOnlyList<Compilation> Compilations { get; }
 
@@ -36,7 +36,7 @@ public sealed class ScriptContext
         return new ScriptContext(solution, compilations);
     }
 
-    public void Print(object? value) => output.AppendLine(Render(value));
+    public void Print(object? value) => _output.AppendLine(Render(value));
 
     /// <summary>Types declared in source whose name contains the pattern.</summary>
     public IEnumerable<INamedTypeSymbol> Types(string pattern) =>

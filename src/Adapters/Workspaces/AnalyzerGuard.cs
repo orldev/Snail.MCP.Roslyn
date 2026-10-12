@@ -25,34 +25,34 @@ internal static class AnalyzerGuard
 
         var full = Path.GetFullPath(analyzerPath);
 
-        if (Under(full, PackageCache) || DotnetRoots.Any(root => Under(full, root)))
+        if (IsUnder(full, PackageCache) || DotnetRoots.Any(root => IsUnder(full, root)))
             return true;
 
         if (string.Equals(policy, "strict", StringComparison.OrdinalIgnoreCase))
             return false;
 
-        return solutionRoot is not null && Under(full, solutionRoot);
+        return solutionRoot is not null && IsUnder(full, solutionRoot);
     }
 
     /// <summary>True when the assembly at this path came with .NET or with this server, rather than with a
     /// solution it was asked to analyse.</summary>
     public static bool ShipsWithTheServer(string path) =>
-        Under(path, AppContext.BaseDirectory) || DotnetRoots.Any(root => Under(path, root));
+        IsUnder(path, AppContext.BaseDirectory) || DotnetRoots.Any(root => IsUnder(path, root));
 
     /// <summary>The installation behind every SDK MSBuild knows about, and this process's own as a fallback for
     /// when MSBuild was never located.</summary>
+    /// <remarks>An SDK MSBuild locates sits two folders below its installation (.../dotnet/sdk/10.0.202), the running
+    /// runtime three (.../dotnet/shared/Microsoft.NETCore.App/10.0.6).</remarks>
     private static IReadOnlyList<string> Installed()
     {
         HashSet<string> roots = new(StringComparer.Ordinal);
 
         foreach (var instance in Located())
         {
-            // .../dotnet/sdk/10.0.202 -> .../dotnet
             if (Above(instance, 2) is { } installation)
                 roots.Add(installation);
         }
 
-        // .../dotnet/shared/Microsoft.NETCore.App/10.0.6 -> .../dotnet
         if (roots.Count == 0 && Above(Path.GetDirectoryName(typeof(object).Assembly.Location), 3) is { } running)
             roots.Add(running);
 
@@ -79,5 +79,5 @@ internal static class AnalyzerGuard
         return string.IsNullOrEmpty(path) ? null : path;
     }
 
-    private static bool Under(string path, string root) => SourcePaths.IsUnder(path, root);
+    private static bool IsUnder(string path, string root) => SourcePaths.IsUnder(path, root);
 }

@@ -17,16 +17,16 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
 
     private static readonly string[] SourcePatterns = ["*.cs", "*.razor", "*.cshtml"];
 
-    private readonly ConcurrentDictionary<string, Entry> entries = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, Entry> _entries = new(StringComparer.Ordinal);
 
     /// <summary>Ids dropped to stay within the ceiling, so a call carrying one is told what happened to it
     /// rather than being told it never loaded the solution.</summary>
-    private readonly ConcurrentDictionary<string, byte> dropped = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, byte> _dropped = new(StringComparer.Ordinal);
 
-    public int Loaded => entries.Count;
+    public int Loaded => _entries.Count;
 
     /// <summary>Whether this solution is still held, so a caller can reuse it instead of opening it again.</summary>
-    public bool Holds(string id) => entries.ContainsKey(id);
+    public bool Holds(string id) => _entries.ContainsKey(id);
 
     public async Task StoreAsync(
         string id,
@@ -35,11 +35,11 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
         string entryPath,
         CancellationToken cancellationToken)
     {
-        if (entries.TryRemove(id, out var previous))
+        if (_entries.TryRemove(id, out var previous))
             await previous.RetireAsync(cancellationToken);
 
-        dropped.TryRemove(id, out _);
-        entries[id] = Adopt(workspace, solution, entryPath);
+        _dropped.TryRemove(id, out _);
+        _entries[id] = Adopt(workspace, solution, entryPath);
 
         await EvictAsync(cancellationToken);
     }
@@ -50,14 +50,14 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
     {
         var ceiling = Math.Max(1, options.Value.MaxSolutions);
 
-        while (entries.Count > ceiling)
+        while (_entries.Count > ceiling)
         {
-            var stale = entries.OrderBy(entry => entry.Value.LastUsed).First();
+            var stale = _entries.OrderBy(entry => entry.Value.LastUsed).First();
 
-            if (!entries.TryRemove(stale.Key, out var evicted))
+            if (!_entries.TryRemove(stale.Key, out var evicted))
                 continue;
 
-            dropped[stale.Key] = 0;
+            _dropped[stale.Key] = 0;
 
             await evicted.RetireAsync(cancellationToken);
         }
@@ -68,9 +68,9 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
     /// and two callers racing there corrupt a Dictionary rather than merely losing an update.</summary>
     public async Task<Solution> FreshAsync(string id, CancellationToken cancellationToken)
     {
-        if (!entries.TryGetValue(id, out var entry))
+        if (!_entries.TryGetValue(id, out var entry))
         {
-            throw new InvalidOperationException(dropped.ContainsKey(id)
+            throw new InvalidOperationException(_dropped.ContainsKey(id)
                 ? $"Solution '{id}' was dropped to keep at most {Math.Max(1, options.Value.MaxSolutions)} solutions in memory. Call load_solution again."
                 : $"Solution '{id}' is not loaded. Call load_solution first.");
         }
@@ -85,7 +85,7 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
 
         try
         {
-            if (Restructured(entry))
+            if (WasRestructured(entry))
                 return await ReopenAsync(id, entry, cancellationToken);
 
             var solution = entry.Solution;
@@ -112,16 +112,21 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
         }
     }
 
+    /// <summary>The entry of a solution just opened.</summary>
+    /// <remarks>Whatever is on disk at open time and is still not a document is excluded by the project
+    /// itself.</remarks>
     private static Entry Adopt(MSBuildWorkspace workspace, Solution solution, string entryPath)
     {
         var entry = new Entry(workspace, solution, entryPath);
 
-        // Whatever is on disk at open time and is still not a document is excluded by the project itself.
         entry.Excluded.UnionWith(OnDiskOnly(solution));
 
         return entry;
     }
 
+    /// <summary>The text of a document whose file changed since it was last read, or null when it did not.</summary>
+    /// <remarks>A file is stamped only once the read succeeded: a cancelled read must not mark the file as
+    /// seen.</remarks>
     private static async Task<SourceText?> ReadChangedAsync(
         Entry entry,
         TextDocument document,
@@ -137,15 +142,14 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
 
         var text = SourceText.From(await File.ReadAllTextAsync(path, cancellationToken));
 
-        // Stamped only once the read succeeded: a cancelled read must not mark the file as seen.
         entry.Stamps[document.Id] = stamp;
 
         return text;
     }
 
-    public async Task<bool> RemoveAsync(string id, CancellationToken cancellationToken)
+    public async Task<bool> TryRemoveAsync(string id, CancellationToken cancellationToken)
     {
-        if (!entries.TryRemove(id, out var entry))
+        if (!_entries.TryRemove(id, out var entry))
             return false;
 
         await entry.RetireAsync(cancellationToken);
@@ -156,10 +160,10 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
     /// <summary>Shutdown, where nobody is left to wait for: the workspaces go directly, without their gates.</summary>
     public void Dispose()
     {
-        foreach (var entry in entries.Values)
+        foreach (var entry in _entries.Values)
             entry.Dispose();
 
-        entries.Clear();
+        _entries.Clear();
     }
 
     /// <summary>Replaces the entry in place. The stale workspace is disposed directly rather than retired:
@@ -172,8 +176,8 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
             ? await workspace.OpenSolutionAsync(stale.EntryPath, cancellationToken: cancellationToken)
             : (await workspace.OpenProjectAsync(stale.EntryPath, cancellationToken: cancellationToken)).Solution;
 
-        entries[id] = Adopt(workspace, solution, stale.EntryPath);
-        stale.Dispose();
+        _entries[id] = Adopt(workspace, solution, stale.EntryPath);
+        stale.DisposeWorkspace();
 
         return solution;
     }
@@ -184,9 +188,9 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
     /// file — sits on disk forever and is not a document, so a plain "on disk but not a document" test reopens the
     /// whole solution through MSBuild on every single call. Once a reopen has declined to adopt a path, it is
     /// recorded as excluded and never asked about again, until a project file changes and the answer may differ.</remarks>
-    private static bool Restructured(Entry entry)
+    private static bool WasRestructured(Entry entry)
     {
-        if (ProjectFilesChanged(entry))
+        if (HaveProjectFilesChanged(entry))
             return true;
 
         var known = Contained(entry.Solution);
@@ -202,7 +206,7 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
 
     /// <summary>A changed project file can add or drop source files wholesale, so the exclusions it justified
     /// no longer hold and the workspace has to be built again.</summary>
-    private static bool ProjectFilesChanged(Entry entry)
+    private static bool HaveProjectFilesChanged(Entry entry)
     {
         var changed = false;
 
@@ -256,7 +260,7 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
 
     private sealed class Entry(MSBuildWorkspace workspace, Solution solution, string entryPath) : IDisposable
     {
-        private readonly SemaphoreSlim gate = new(1, 1);
+        private readonly SemaphoreSlim _gate = new(1, 1);
 
         public Solution Solution { get; set; } = solution;
 
@@ -271,9 +275,9 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
 
         public Dictionary<string, DateTime> ProjectStamps { get; } = new(PathComparer);
 
-        public Task EnterAsync(CancellationToken cancellationToken) => gate.WaitAsync(cancellationToken);
+        public Task EnterAsync(CancellationToken cancellationToken) => _gate.WaitAsync(cancellationToken);
 
-        public void Exit() => gate.Release();
+        public void Exit() => _gate.Release();
 
         /// <summary>Releases the workspace once whoever is inside the entry has left, so an unload or a reload
         /// cannot pull the compilations out from under a request already reading them.</summary>
@@ -281,7 +285,7 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
         /// blocking a request thread until an unrelated request finishes is how a server runs out of them.</remarks>
         public async Task RetireAsync(CancellationToken cancellationToken)
         {
-            await gate.WaitAsync(cancellationToken);
+            await _gate.WaitAsync(cancellationToken);
 
             try
             {
@@ -289,11 +293,19 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
             }
             finally
             {
-                gate.Release();
+                _gate.Release();
             }
         }
 
-        public void Dispose() => workspace.Dispose();
+        /// <summary>Releases the workspace alone, for a caller inside the gate: the gate stays usable for it to leave through.</summary>
+        public void DisposeWorkspace() => workspace.Dispose();
+
+        /// <summary>Releases the workspace and the gate, at shutdown, where nobody is left inside or waiting.</summary>
+        public void Dispose()
+        {
+            workspace.Dispose();
+            _gate.Dispose();
+        }
 
         private static Dictionary<DocumentId, DateTime> Snapshot(Solution solution)
         {

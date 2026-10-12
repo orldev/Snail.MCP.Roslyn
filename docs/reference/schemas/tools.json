@@ -1,0 +1,1434 @@
+[
+  {
+    "name": "load_solution",
+    "description": "Load a C# solution or project and keep it compiled for later questions. Returns the project list, counts of compiler errors and warnings, and a readiness state. Readiness \u0027Degraded\u0027 means package restore has not run, so semantic answers under-report: report that state instead of trusting an empty result. The \u0027unloaded\u0027 list names .csproj files on disk that the solution does not include and that no answer covers. Call this once per solution before any other tool.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "description": "Absolute path to a .sln, .slnx or .csproj file, or a directory containing one.",
+          "type": "string"
+        },
+        "countDiagnostics": {
+          "description": "Also count compiler errors and warnings. Off by default: it costs a full build and the numbers go stale on the next edit.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "path"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "get_diagnostics",
+    "description": "List compiler errors and warnings for a loaded solution, reflecting the files as they are on disk right now. Call it right after editing to see what the change broke; it is cheap enough to use after every edit. Identical diagnostics repeated across generated components are collapsed and counted in \u0027repeats\u0027. Truncation is always stated, so a short list is not the same as a complete one.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Optional absolute file or directory path that narrows the results.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "minimum": {
+          "description": "Lowest severity to include: Info, Warning or Error.",
+          "type": "string",
+          "enum": [
+            "Info",
+            "Warning",
+            "Error"
+          ],
+          "default": "Warning"
+        },
+        "limit": {
+          "description": "Maximum issues to return.",
+          "type": "integer",
+          "default": 50
+        },
+        "includeGenerated": {
+          "description": "Include diagnostics that only exist in generated code the caller cannot edit.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "read_file",
+    "description": "Read one file the way the compiler sees it: the numbered text, the diagnostics that live in it, and every declaration it holds with the identifier the symbol tools expect and a count of its uses across the solution. Prefer this over a plain file read for C#: same text, plus what text cannot show. A .razor or .cshtml file of the solution comes back as a component view: diagnostics and @code declarations mapped to their authored lines, component tags resolved to types, the directives the file declares, and render-cost patterns under SNR ids. A file outside the loaded solution comes back as text alone, and the answer says so.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "file": {
+          "description": "Absolute path of the file to read.",
+          "type": "string"
+        },
+        "startLine": {
+          "description": "One-based line to start from.",
+          "type": "integer",
+          "default": 1
+        },
+        "maxLines": {
+          "description": "Maximum lines of text to return.",
+          "type": "integer",
+          "default": 2000
+        }
+      },
+      "required": [
+        "solutionId",
+        "file"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "get_solution_overview",
+    "description": "Describe the whole solution in one budgeted answer: project graph, sizes, compiler errors, the types the rest of the code names most often, and the structural breaches found. Call this before proposing a restructuring, instead of reading files one by one. Analysis always covers the whole solution; only the answer is budgeted, and truncation is stated.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum entries per section of the answer.",
+          "type": "integer",
+          "default": 20
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "check_architecture",
+    "description": "List structural breaches: namespaces that do not match their folder, namespaces that depend on each other in a cycle, projects that do, and markup blocks the solution repeats \u2014 a repeated block differing only in values is a candidate to extract into a component. Every finding is a claim about the code checkable at the file and line given. Whether a breach matters is a judgement this tool does not make.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "Maximum findings to return.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "health_check",
+    "description": "Report whether the server itself is in a state where its answers can be trusted: readiness, project and document counts, how long a full diagnostic pass takes, memory in use, how many solutions are loaded, and whether scripting is enabled. Call this when an answer looks suspiciously empty or suspiciously fast.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "unload_solution",
+    "description": "Release a loaded solution and the memory its compilations hold. Use it when you are done with one solution and about to work on another; loading again is cheap.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "search_symbols",
+    "description": "Find symbols whose name contains the query and return the identifier every other tool expects. This is the entry point: resolve a name to an identifier here, then pass that identifier on. Never guess an identifier and never rename by bare name when more than one symbol matches.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "query": {
+          "description": "Part of the symbol name; matching ignores case.",
+          "type": "string"
+        },
+        "kind": {
+          "description": "Narrow to one declaration family: Any, Type, Method, Property, Field or Event.",
+          "type": "string",
+          "enum": [
+            "Any",
+            "Type",
+            "Method",
+            "Property",
+            "Field",
+            "Event"
+          ],
+          "default": "Any"
+        },
+        "limit": {
+          "description": "Maximum candidates to return.",
+          "type": "integer",
+          "default": 30
+        }
+      },
+      "required": [
+        "solutionId",
+        "query"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "get_symbol_info",
+    "description": "Describe one symbol: kind, signature, accessibility, namespace, declaration site and documentation. Address it either by the identifier from search_symbols or by a file position.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "get_symbol_source",
+    "description": "Return the source text that declares one symbol, cut to its own span, so you can read a type or a method without knowing which file holds it or how many lines it spans. Address it by the identifier from search_symbols or by a file position. Prefer this over reading a whole file when you only need one declaration.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "find_references",
+    "description": "List every place the compiler treats as a use of this symbol, so you can see what breaks before you touch it. Covers overrides, interface implementations, nameof and documentation references, not text matches. Each reference carries a kind \u2014 read, write, invocation, object_creation, type_argument and so on \u2014 so fifty results can be judged without reading fifty files. A use inside a .razor or .cshtml file is returned with kind \u0027markup\u0027 and the authored file, without a line. Scope is the loaded solution: uses from projects outside it are invisible here and are not reported as absent.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "limit": {
+          "description": "Maximum references to return.",
+          "type": "integer",
+          "default": 100
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "find_implementations",
+    "description": "List what implements or derives from this symbol: implementations of an interface or interface member, derived classes, derived interfaces, overriding members. These are compiler edges, invisible to text search, and they are what a signature change breaks.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare name; used only when it matches exactly one symbol.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "limit": {
+          "description": "Maximum results to return.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "find_callers",
+    "description": "List the methods that call this one, as symbols rather than as locations, so a call graph can be walked upwards without reading files.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare name; used only when it matches exactly one symbol.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "limit": {
+          "description": "Maximum results to return.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "get_type_hierarchy",
+    "description": "Show where a type sits: what it inherits, every interface it carries, and everything that derives from it. One call replaces a chain of find_references.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare type name; used only when it matches exactly one type.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "get_generated_code",
+    "description": "List what the source generators contributed to a project, so a symbol with no declaration in source can be traced. Generated files are rebuilt on every compile: editing them changes nothing, so change the input the generator reads instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "project": {
+          "description": "Project name or part of it; the first C# project when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "hintName": {
+          "description": "Part of the generated file name, to narrow the list.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "includeText": {
+          "description": "Include the generated text itself, not just the file list.",
+          "type": "boolean",
+          "default": false
+        },
+        "limit": {
+          "description": "Maximum files to return.",
+          "type": "integer",
+          "default": 20
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "extract_component",
+    "description": "Plan the extraction of a markup block from a .razor file into a new component. This tool never writes: it returns the new file\u0027s content as an edit and the page-side change as a compact replacement \u2014 delete the given line range, put the replacement text in its place. You supply the judgment \u2014 the line range, \u0027substitutions\u0027 renaming page-private names to parameter names, the \u0027code\u0027 block declaring them, and the \u0027tag\u0027 that replaces the block; the tool supplies the guarantees: the range must not cut an element apart (checked by the Razor parser), and the candidate is compiled in context so \u0027unresolved\u0027 names every identifier that stops resolving outside the page. Call it first without substitutions to learn the leaks; while \u0027unresolved\u0027 is non-empty the plan carries no edits. Then call again with the full judgment, apply, and run get_diagnostics.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "file": {
+          "description": "Absolute path of the .razor file to extract from.",
+          "type": "string"
+        },
+        "startLine": {
+          "description": "One-based first line of the block, inclusive.",
+          "type": "integer"
+        },
+        "endLine": {
+          "description": "One-based last line of the block, inclusive.",
+          "type": "integer"
+        },
+        "name": {
+          "description": "Name of the new component; also names the new file.",
+          "type": "string"
+        },
+        "substitutions": {
+          "description": "Renames applied to the block, page-private name to parameter name; longest keys first. Omit on the first call to learn the leaks.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default": null
+        },
+        "code": {
+          "description": "The @code block of the new component, verbatim, declaring its [Parameter]s.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "tag": {
+          "description": "Markup that replaces the block in the source file; a self-closing tag of the new component when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "newFile": {
+          "description": "Absolute path for the new file; a sibling named after the component when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "solutionId",
+        "file",
+        "startLine",
+        "endLine",
+        "name"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "rename_symbol",
+    "description": "Plan a solution-wide rename and return the edits for you to apply. This tool never writes to disk. The compiler decides what a reference is, so overloads, overrides, interface implementations, nameof and documentation references are all covered without text search. Two parts of the answer matter equally. \u0027edits\u0027 is what the compiler guarantees. \u0027unhandled\u0027 lists text it will not touch and you must judge: string literals, comments, container registrations by name, unrelated symbols sharing the name. \u0027conflicts\u0027 lists compiler errors the rename would introduce; a non-empty list means do not apply it. A Blazor component is planned too: its .razor file rename and its markup tags arrive as edits, with the rest of the markup under \u0027unhandled\u0027. An @code member such as a [Parameter] renames as well: attribute assignments in consumer markup are edited at the exact positions the compiler maps back. If the name matches several symbols the answer carries \u0027candidates\u0027 and no edits: pick one and call again by id.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "newName": {
+          "description": "New name for the symbol.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare symbol name; used only when it matches exactly one symbol, otherwise candidates come back.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "renameOverloads": {
+          "description": "Rename every overload of the method, not just this one.",
+          "type": "boolean",
+          "default": true
+        },
+        "renameFile": {
+          "description": "Rename the file when its name matches the type.",
+          "type": "boolean",
+          "default": true
+        },
+        "searchComments": {
+          "description": "Also rewrite occurrences inside comments.",
+          "type": "boolean",
+          "default": false
+        },
+        "searchStrings": {
+          "description": "Also rewrite occurrences inside string literals.",
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [
+        "solutionId",
+        "newName"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "rename_namespace",
+    "description": "Plan a namespace rename across the solution and return the edits for you to apply. This tool never writes to disk. With updateFolders the file moves that realign the folders with the new namespace are included. Old and new must have the same number of segments; otherwise no edits are proposed and the textual picture is returned instead.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "oldNamespace": {
+          "description": "Namespace as it is written today, fully qualified.",
+          "type": "string"
+        },
+        "newNamespace": {
+          "description": "Namespace it should read as, fully qualified and with the same number of segments.",
+          "type": "string"
+        },
+        "updateFolders": {
+          "description": "Also move the files so the folders match the new namespace.",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "solutionId",
+        "oldNamespace",
+        "newNamespace"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "move_type",
+    "description": "Plan moving a type to another file, another namespace, or both, and return the edits for you to apply. This tool never writes to disk. The type keeps its name, so references stay valid unless the namespace changed; \u0027conflicts\u0027 lists any compiler error the move would introduce.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare type name; used only when it matches exactly one type.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "targetFile": {
+          "description": "Absolute path of the file the type should live in; a sibling file named after the type when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "targetNamespace": {
+          "description": "Namespace the type should declare; unchanged when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "organize_usings",
+    "description": "Plan the removal of using directives the compiler reports as unnecessary and sort the rest, System first. This tool never writes to disk. Knowing which directive is unnecessary needs semantics, which is why this is not a text edit.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Optional absolute file or directory path that narrows the work.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "change_signature",
+    "description": "Plan a change to a method signature and return the edit for the declaration. This tool never writes to disk. The compiler offers no cascading signature change, so every call site that stops compiling is listed under \u0027conflicts\u0027 \u2014 that list is complete and is your work list.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare method name; used only when it matches exactly one method.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "parameters": {
+          "description": "Parameters the method should take, each written as \u0027Type name\u0027; unchanged when omitted.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "default": null
+        },
+        "returnType": {
+          "description": "Return type the method should have; unchanged when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "analyze_change_impact",
+    "description": "Measure what depends on a symbol before anyone changes it: references grouped by project, the overrides and interface implementations a shape change would break, and the text occurrences the compiler will not protect. Call this before a rename or a signature change, not after.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare name; used only when it matches exactly one symbol.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "limit": {
+          "description": "Maximum entries per section of the answer.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "run_analyzers",
+    "description": "Run the analyzers over the solution and report what they find, with the category that explains why it matters. Use category \u0027Performance\u0027 for the known-slow patterns worth replacing. This costs seconds, not milliseconds: use get_diagnostics for the after-every-edit loop. If a project references no analyzers, the ones shipped with this server are used and the answer says so.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Optional absolute file or directory path that narrows the results.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "category": {
+          "description": "Analyzer category to keep, such as Performance, Design, Reliability or Usage.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "minimum": {
+          "description": "Lowest severity to include: Info, Warning or Error.",
+          "type": "string",
+          "enum": [
+            "Info",
+            "Warning",
+            "Error"
+          ],
+          "default": "Info"
+        },
+        "limit": {
+          "description": "Maximum findings to return.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "get_code_fixes",
+    "description": "Return the repairs the compiler\u0027s own providers offer for a diagnostic, as edits for you to apply. This tool never writes to disk. A fix that compiles is not automatically a fix that is right.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "file": {
+          "description": "Absolute path of the file the diagnostic points at.",
+          "type": "string"
+        },
+        "line": {
+          "description": "One-based line the diagnostic points at.",
+          "type": "integer"
+        },
+        "diagnosticId": {
+          "description": "Diagnostic id to fix, such as CS0103; the first diagnostic on the line when omitted.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "solutionId",
+        "file",
+        "line"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "validate",
+    "description": "Compile a file\u0027s proposed contents in the context of the solution, before writing anything to disk. Answers what the change would break and what it would repair. Use this when you are about to write a file and the cost of being wrong is a broken build.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "file": {
+          "description": "Absolute path the contents are meant for; the file need not exist yet.",
+          "type": "string"
+        },
+        "content": {
+          "description": "The complete proposed contents of that file.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "solutionId",
+        "file",
+        "content"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "get_di_registrations",
+    "description": "List the dependency injection registrations found in source: service, implementation and lifetime, with the line that declares them. Also names the interfaces that are implemented but registered nowhere. A registration written as a string or resolved by reflection is invisible to rename_symbol: this is where you check what a rename left behind.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "service": {
+          "description": "Part of a service type name, to narrow the list.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "limit": {
+          "description": "Maximum registrations to return.",
+          "type": "integer",
+          "default": 100
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "find_unused_symbols",
+    "description": "List declarations that no code in the loaded solution references. That is not the same as dead: reflection, injection by name and serialisation are invisible to the compiler. Blazor markup is counted through the generated code, so an unused [Parameter] or @inject appears here with its authored file and line. Treat every finding as a candidate to verify, never as a licence to delete.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Optional absolute file or directory path that narrows the audit.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "limit": {
+          "description": "Maximum findings to return.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "find_uncovered_symbols",
+    "description": "List public declarations that no test project in this solution references. Referencing is not testing, but zero references from tests is a hard signal that text search cannot produce.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "Optional absolute file or directory path that narrows the audit.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "limit": {
+          "description": "Maximum findings to return.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "find_tests_for_symbol",
+    "description": "List the test methods that reach this symbol, so you know what will catch a change to it before you make one.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "symbolId": {
+          "description": "Symbol id from search_symbols.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Bare name; used only when it matches exactly one symbol.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "file": {
+          "description": "Absolute file path.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
+        },
+        "line": {
+          "description": "1-based line.",
+          "type": "integer",
+          "default": 0
+        },
+        "column": {
+          "description": "1-based column.",
+          "type": "integer",
+          "default": 0
+        },
+        "limit": {
+          "description": "Maximum test methods to return.",
+          "type": "integer",
+          "default": 50
+        }
+      },
+      "required": [
+        "solutionId"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  },
+  {
+    "name": "run_script",
+    "description": "Evaluate a C# script against the loaded solution and return its value and printed output. Use it for the question no fixed tool anticipates: one pass over the whole solution, aggregated the way you need. Available globals: Solution, Compilations, Print(value), Types(pattern), Sym(id), Refs(symbol), Impls(symbol), Callers(symbol). The script cannot change the code: the workspace is an in-memory snapshot and edits to it are discarded.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "solutionId": {
+          "description": "From load_solution.",
+          "type": "string"
+        },
+        "code": {
+          "description": "C# script body; its last expression is the returned value.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "solutionId",
+        "code"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "run_tools",
+    "description": "Runs several of this server\u0027s tools in one call, in order, stopping at the first failure. For steps that do not depend on reading the previous answer. Each step is an ordinary tool call.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "steps": {
+          "description": "Steps in order: {\u0022tool\u0022: \u0022get_diagnostics\u0022, \u0022params\u0022: {\u2026}}. Call find_tool for what a tool takes.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tool": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "params": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "tool",
+              "params"
+            ]
+          }
+        }
+      },
+      "required": [
+        "steps"
+      ]
+    },
+    "annotations": {
+      "destructiveHint": true,
+      "openWorldHint": true,
+      "readOnlyHint": false
+    },
+    "skill": null
+  },
+  {
+    "name": "find_tool",
+    "description": "Names the tools that answer a task described in words, with the parameters each takes. Ask here instead of carrying all thirty in the window.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "task": {
+          "description": "What you are trying to do, in words: \u0027where is this used\u0027, \u0027does it compile\u0027.",
+          "type": "string"
+        },
+        "limit": {
+          "description": "How many tools to name; five by default.",
+          "type": "integer",
+          "default": 5
+        }
+      },
+      "required": [
+        "task"
+      ]
+    },
+    "annotations": {
+      "openWorldHint": false,
+      "readOnlyHint": true
+    },
+    "skill": null
+  }
+]

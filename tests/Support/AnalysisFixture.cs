@@ -9,7 +9,7 @@ namespace Snail.MCP.Roslyn.Tests.Support;
 /// <summary>Hosts the analysis ports in process and loads this repository once for the whole suite.</summary>
 public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
 {
-    private readonly ServiceProvider provider;
+    private readonly ServiceProvider _provider;
 
     public AnalysisFixture()
         : this([])
@@ -29,46 +29,46 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
 
         services.AddSingleton(address ?? new StdioAddress());
 
-        provider = services.BuildServiceProvider();
+        _provider = services.BuildServiceProvider();
     }
 
     public string SolutionId { get; private set; } = string.Empty;
 
     public WorkspaceReport Report { get; private set; } = null!;
 
-    public ISolutionHost Host => provider.GetRequiredService<ISolutionHost>();
+    public ISolutionHost Host => _provider.GetRequiredService<ISolutionHost>();
 
-    public IDiagnosticReader Diagnostics => provider.GetRequiredService<IDiagnosticReader>();
+    public IDiagnosticReader Diagnostics => _provider.GetRequiredService<IDiagnosticReader>();
 
-    public ISymbolLookup Symbols => provider.GetRequiredService<ISymbolLookup>();
+    public ISymbolLookup Symbols => _provider.GetRequiredService<ISymbolLookup>();
 
-    public IReferenceFinder References => provider.GetRequiredService<IReferenceFinder>();
+    public IReferenceFinder References => _provider.GetRequiredService<IReferenceFinder>();
 
-    public IRenamePlanner Renames => provider.GetRequiredService<IRenamePlanner>();
+    public IRenamePlanner Renames => _provider.GetRequiredService<IRenamePlanner>();
 
-    public IStructureRefactorer Structure => provider.GetRequiredService<IStructureRefactorer>();
+    public IStructureRefactorer Structure => _provider.GetRequiredService<IStructureRefactorer>();
 
-    public IImpactAnalyzer Impact => provider.GetRequiredService<IImpactAnalyzer>();
+    public IImpactAnalyzer Impact => _provider.GetRequiredService<IImpactAnalyzer>();
 
-    public IHierarchyExplorer Hierarchy => provider.GetRequiredService<IHierarchyExplorer>();
+    public IHierarchyExplorer Hierarchy => _provider.GetRequiredService<IHierarchyExplorer>();
 
-    public ISolutionSurveyor Surveyor => provider.GetRequiredService<ISolutionSurveyor>();
+    public ISolutionSurveyor Surveyor => _provider.GetRequiredService<ISolutionSurveyor>();
 
-    public IContainerReader Container => provider.GetRequiredService<IContainerReader>();
+    public IContainerReader Container => _provider.GetRequiredService<IContainerReader>();
 
-    public ICodeUsageAuditor Auditor => provider.GetRequiredService<ICodeUsageAuditor>();
+    public ICodeUsageAuditor Auditor => _provider.GetRequiredService<ICodeUsageAuditor>();
 
-    public IAnalyzerRunner Analyzers => provider.GetRequiredService<IAnalyzerRunner>();
+    public IAnalyzerRunner Analyzers => _provider.GetRequiredService<IAnalyzerRunner>();
 
-    public ICodeValidator Validator => provider.GetRequiredService<ICodeValidator>();
+    public ICodeValidator Validator => _provider.GetRequiredService<ICodeValidator>();
 
-    public IScriptRunner Scripts => provider.GetRequiredService<IScriptRunner>();
+    public IScriptRunner Scripts => _provider.GetRequiredService<IScriptRunner>();
 
-    public IGeneratedCodeReader Generated => provider.GetRequiredService<IGeneratedCodeReader>();
+    public IGeneratedCodeReader Generated => _provider.GetRequiredService<IGeneratedCodeReader>();
 
-    public IFileReader Reader => provider.GetRequiredService<IFileReader>();
+    public IFileReader Reader => _provider.GetRequiredService<IFileReader>();
 
-    public IComponentExtractor Extractor => provider.GetRequiredService<IComponentExtractor>();
+    public IComponentExtractor Extractor => _provider.GetRequiredService<IComponentExtractor>();
 
     public async Task InitializeAsync()
     {
@@ -89,7 +89,7 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    public void Dispose() => provider.Dispose();
+    public void Dispose() => _provider.Dispose();
 }
 
 [CollectionDefinition(nameof(AnalysisCollection))]

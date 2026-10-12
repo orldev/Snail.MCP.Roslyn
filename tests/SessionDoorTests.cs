@@ -1,9 +1,9 @@
 namespace Snail.MCP.Roslyn.Tests;
 
 /// <summary>
-/// Две двери, через которые путь попадает внутрь: загрузка решения по пути и всё остальное по его id.
-/// Вторая тише и потому опаснее — id считается из пути детерминированно, поэтому в общем контейнере
-/// чужой id не надо угадывать, его можно вычислить.
+/// Two doors a path gets in through: loading a solution by its path, and everything else by its id.
+/// The second is quieter and so more dangerous: the id is computed from the path deterministically, so in a shared
+/// container another session's id need not be guessed, it can be computed.
 /// </summary>
 public sealed class SessionDoorTests : IDisposable
 {
@@ -16,41 +16,41 @@ public sealed class SessionDoorTests : IDisposable
         </Project>
         """;
 
-    private readonly string mine = Directory.CreateTempSubdirectory("roslyn-door-mine").FullName;
+    private readonly string _mine = Directory.CreateTempSubdirectory("roslyn-door-mine").FullName;
 
-    private readonly string theirs = Directory.CreateTempSubdirectory("roslyn-door-theirs").FullName;
+    private readonly string _theirs = Directory.CreateTempSubdirectory("roslyn-door-theirs").FullName;
 
     [Fact]
     public async Task LoadSolution_APathOutsideTheSession_IsRefusedAndSaysWhere()
     {
-        await WriteAsync(theirs, "Theirs");
+        await WriteAsync(_theirs, "Theirs");
 
-        using var fixture = new AnalysisFixture([], new Address(mine));
+        using var fixture = new AnalysisFixture([], new Address(_mine));
 
-        var report = await fixture.Host.LoadAsync(theirs, CancellationToken.None);
+        var report = await fixture.Host.LoadAsync(_theirs, CancellationToken.None);
 
         var said = string.Join(" ", report.Notes);
 
         Assert.Contains("outside this session", said, StringComparison.Ordinal);
-        Assert.Contains(mine, said, StringComparison.Ordinal);
+        Assert.Contains(_mine, said, StringComparison.Ordinal);
     }
 
     /// <summary>
-    /// Решение, загруженное другой сессией, остаётся в общем кэше процесса — и по id к нему не пускают.
-    /// Без этой двери один воркер читал бы файлы и диагностику чужой задачи, зная только её путь.
+    /// A solution loaded by another session stays in the process's shared cache — and is not reachable by its id.
+    /// Without this door one worker would read the files and diagnostics of another's task, knowing only its path.
     /// </summary>
     [Fact]
     public async Task ASolutionLoadedByAnotherSession_IsNotReachableByItsId()
     {
-        await WriteAsync(theirs, "Theirs");
+        await WriteAsync(_theirs, "Theirs");
 
-        var address = new Address(theirs);
+        var address = new Address(_theirs);
         using var fixture = new AnalysisFixture([], address);
 
-        var loaded = await fixture.Host.LoadAsync(theirs, CancellationToken.None);
+        var loaded = await fixture.Host.LoadAsync(_theirs, CancellationToken.None);
         Assert.NotEmpty(loaded.Id);
 
-        address.Root = mine;
+        address.Root = _mine;
 
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Diagnostics.ReadAsync(loaded.Id, null, IssueSeverity.Error, 10, false, CancellationToken.None));
@@ -60,8 +60,8 @@ public sealed class SessionDoorTests : IDisposable
 
     public void Dispose()
     {
-        Directory.Delete(mine, recursive: true);
-        Directory.Delete(theirs, recursive: true);
+        Directory.Delete(_mine, recursive: true);
+        Directory.Delete(_theirs, recursive: true);
     }
 
     private static async Task WriteAsync(string folder, string name)

@@ -64,7 +64,7 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
     [Fact]
     public async Task ReadAsync_FileOutsideSolution_ReturnsTextOnlyWithNote()
     {
-        var file = Path.Combine(RepositoryPaths.Source, "README.md");
+        var file = Path.Combine(RepositoryPaths.Root, "README.md");
 
         var view = await fixture.Reader.ReadAsync(fixture.SolutionId, file, 1, 2000, CancellationToken.None);
 
@@ -74,6 +74,8 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
         Assert.Contains(view.Notes, note => note.Contains("not a C# document", StringComparison.Ordinal));
     }
 
+    /// <remarks>The issue's line has to index the text this very answer returned; they come from one
+    /// snapshot.</remarks>
     [Fact]
     public async Task ReadAsync_FileWithACompilerError_ReportsItAgainstTheTextItReturns()
     {
@@ -89,7 +91,6 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
 
             Assert.Equal(file, error.File);
 
-            // The issue's line has to index the text this very answer returned; they come from one snapshot.
             Assert.Contains("undefinedName", view.Text.Split('\n')[error.Line - 1], StringComparison.Ordinal);
         }
         finally

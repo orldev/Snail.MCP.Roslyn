@@ -1,0 +1,16 @@
+{
+  "intro": [
+    "An MCP server that keeps a C# solution compiled in memory and answers an agent faster than it loses the thread. The compiler, not text search, decides what a reference is, and the server never writes to your code: every refactoring returns edits for you to apply.",
+    "Call `load_solution` once, then pass the returned `solutionId` to everything else."
+  ],
+  "families": [
+    { "type": "SolutionTools", "slug": "solution", "title": "The solution: load, diagnostics, files, overview" },
+    { "type": "SymbolTools", "slug": "symbols", "title": "Symbols, references and hierarchies" },
+    { "type": "RefactorTools", "slug": "refactor", "title": "Refactoring plans" },
+    { "type": "AnalysisTools", "slug": "analysis", "title": "Impact, analyzers, fixes and validation" },
+    { "type": "ArchitectureTools", "slug": "architecture", "title": "Registrations, unused and untested code" },
+    { "type": "ScriptTools", "slug": "script", "title": "Scripts over the whole solution" },
+    { "type": "SequenceTools", "slug": "sequence", "title": "Several tools in one call" },
+    { "type": "DiscoveryTools", "slug": "discovery", "title": "Finding a tool" }
+  ]
+}

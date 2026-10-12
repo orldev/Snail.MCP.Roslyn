@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/benchmarks/">
+    <Project Path="benchmarks/Snail.MCP.Roslyn.Benchmarks.csproj" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/tests/">
+    <Project Path="tests/Snail.MCP.Roslyn.Tests.csproj" />
+  </Folder>
+  <Project Path="src/Snail.MCP.Roslyn.csproj" />
+</Solution>

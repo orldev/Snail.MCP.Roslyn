@@ -4,11 +4,11 @@ namespace Snail.MCP.Roslyn.Tests;
 public sealed class OverviewTests(AnalysisFixture fixture)
 {
     [Fact]
-    public async Task OverviewAsync_LoadedRepository_NamesBothProjectsAndTheirEdge()
+    public async Task OverviewAsync_LoadedRepository_NamesEveryProjectAndTheirEdges()
     {
         var overview = await fixture.Surveyor.OverviewAsync(fixture.SolutionId, 20, CancellationToken.None);
 
-        Assert.Equal(2, overview.Projects);
+        Assert.Equal(3, overview.Projects);
         Assert.True(overview.Documents > 40, $"expected the whole repository, saw {overview.Documents} documents");
         Assert.Contains(overview.Graph, project => project.DependsOn.Contains("Snail.MCP.Roslyn"));
     }
@@ -73,7 +73,7 @@ public sealed class OverviewTests(AnalysisFixture fixture)
         var health = await fixture.Surveyor.HealthAsync(fixture.SolutionId, CancellationToken.None);
 
         Assert.Equal(WorkspaceReadiness.Ready, health.Readiness);
-        Assert.Equal(2, health.Projects);
+        Assert.Equal(3, health.Projects);
         Assert.True(health.WorkingSetMegabytes > 0);
     }
 }

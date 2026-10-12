@@ -6,24 +6,35 @@ using Snail.MCP.Roslyn.Configuration;
 namespace Snail.MCP.Roslyn.Extensions;
 
 /// <summary>The server as a running host: listening at an address when it was given a port, a child process otherwise.</summary>
+/// <remarks>
+/// The settings are the <c>SNAIL_MCP_ROSLYN_</c> variables (<see cref="EnvironmentSettings"/>), read once before there
+/// is a host, because the port among them decides which host is built at all.
+/// </remarks>
 public static class McpServerHost
 {
     /// <summary>The path a session is opened at, and the one the platform writes into its registry.</summary>
     public const string Path = "/mcp";
 
     /// <summary>Builds whichever of the two shapes the configuration asks for.</summary>
-    public static IHost Of(string[] args) => Port(args) is var port and > 0 ? Listening(args, port) : Spoken(args);
+    public static IHost Of(string[] args)
+    {
+        var settings = EnvironmentSettings.Read();
+        var port = settings.GetValue<int>(nameof(WorkspaceOptions.Port));
+
+        return port > 0 ? Listening(args, port, settings) : Spoken(args, settings);
+    }
 
     /// <summary>The server answering sessions at <paramref name="port"/>; a port of zero takes any free one.</summary>
     /// <remarks>
     /// Bound on every interface because the callers are the workers of the machine, each in its own
-    /// container: a server on loopback would be reachable from nothing but itself.
+    /// container: a server on loopback would be reachable from nothing but itself. That is why this host is not
+    /// Snail.Sdk.Mcp.Http's, which listens on loopback only.
     /// </remarks>
-    internal static WebApplication Listening(string[] args, int port)
+    internal static WebApplication Listening(string[] args, int port, IConfiguration? settings = null)
     {
         var builder = WebApplication.CreateSlimBuilder(args);
 
-        builder.ConfigureMcpServerAtAnAddress();
+        builder.ConfigureMcpServerAtAnAddress(settings ?? EnvironmentSettings.Read());
 
         var app = builder.Build();
 
@@ -34,26 +45,12 @@ public static class McpServerHost
         return app;
     }
 
-    private static IHost Spoken(string[] args)
+    private static IHost Spoken(string[] args, IConfiguration settings)
     {
-        var builder = Host.CreateApplicationBuilder(args);
+        var builder = Snail.Sdk.Mcp.Hosting.McpHost.CreateBuilder(args);
 
-        builder.ConfigureMcpServerAsAProgram();
+        builder.ConfigureMcpServerAsAProgram(settings);
 
         return builder.Build();
     }
-
-    /// <summary>The port the configuration names, read before there is a host to read it into.</summary>
-    /// <remarks>
-    /// Read first and separately because the answer decides which host is built at all, and the sources
-    /// mirror the ones the host itself would use so that a port set in either place is seen.
-    /// </remarks>
-    private static int Port(string[] args) =>
-        new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json", optional: true)
-            .AddEnvironmentVariables()
-            .AddCommandLine(args)
-            .Build()
-            .GetSection(WorkspaceOptions.Section)
-            .GetValue<int>(nameof(WorkspaceOptions.Port));
 }

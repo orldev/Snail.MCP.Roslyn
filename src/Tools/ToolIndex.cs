@@ -66,16 +66,16 @@ public sealed class ToolIndex
     };
 
     /// <summary>The tools that answer a question, best first; every one of them when none does.</summary>
-    public IReadOnlyList<ToolEntry> Find(string? task, int limit) =>
-    [
-        .. All
-            .Select(entry => (Entry: entry, Score: Vocabulary.Score(task ?? string.Empty, entry.Name, Meant(entry.Name), entry.Description)))
-            .Where(scored => scored.Score > 0)
-            .OrderByDescending(scored => scored.Score)
-            .ThenBy(scored => scored.Entry.Name, StringComparer.Ordinal)
-            .Take(Math.Clamp(limit, 1, All.Count))
-            .Select(scored => scored.Entry)
-    ];
+    public IReadOnlyList<ToolEntry> Find(string? task, int limit)
+    {
+        var scored = All.Select(entry => (Entry: entry, Score: Vocabulary.Score(task ?? string.Empty, entry.Name, Meant(entry.Name), entry.Description)));
+        var answering = scored.Where(candidate => candidate.Score > 0);
+        var ranked = answering
+            .OrderByDescending(candidate => candidate.Score)
+            .ThenBy(candidate => candidate.Entry.Name, StringComparer.Ordinal);
+
+        return [.. ranked.Take(Math.Clamp(limit, 1, All.Count)).Select(candidate => candidate.Entry)];
+    }
 
     /// <summary>The answer <c>find_tool</c> gives: what matched, or the whole catalog when nothing did.</summary>
     public JsonObject Answer(string? task, int limit)
@@ -110,23 +110,25 @@ public sealed class ToolIndex
         })])
     };
 
-    private static IReadOnlyList<ToolEntry> Read() =>
-    [
-        .. typeof(ToolIndex).Assembly.GetTypes()
+    private static IReadOnlyList<ToolEntry> Read()
+    {
+        var classes = typeof(ToolIndex).Assembly.GetTypes()
             .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() is not null)
-            .OrderBy(type => type.Name, StringComparer.Ordinal)
+            .OrderBy(type => type.Name, StringComparer.Ordinal);
+        var tools = classes
             .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Instance))
-            .Where(method => method.GetCustomAttribute<McpServerToolAttribute>() is not null)
-            .Select(Entry)
-    ];
+            .Where(method => method.GetCustomAttribute<McpServerToolAttribute>() is not null);
+
+        return [.. tools.Select(Entry)];
+    }
 
     private static ToolEntry Entry(MethodInfo tool) => new(
         tool.GetCustomAttribute<McpServerToolAttribute>()!.Name!,
         tool.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty,
-        [.. tool.GetParameters().Where(Fillable).Select(Argument)]);
+        [.. tool.GetParameters().Where(IsFillable).Select(Argument)]);
 
     /// <summary>The parameters the model fills; the request and the cancellation token are the SDK's to fill.</summary>
-    private static bool Fillable(ParameterInfo parameter) =>
+    private static bool IsFillable(ParameterInfo parameter) =>
         parameter.ParameterType != typeof(CancellationToken)
         && parameter.ParameterType != typeof(McpServer)
         && parameter.ParameterType != typeof(RequestContext<CallToolRequestParams>)

@@ -1,0 +1,15 @@
+<Project Sdk="Snail.Sdk">
+
+    <PropertyGroup>
+        <RootNamespace>Snail.MCP.Roslyn.Benchmarks</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\src\Snail.MCP.Roslyn.csproj"/>
+    </ItemGroup>
+
+</Project>

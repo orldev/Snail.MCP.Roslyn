@@ -36,9 +36,9 @@ internal static class ProcessFootprint
 /// convention Roslyn does not promise, and a health report is the wrong place to depend on one.</remarks>
 internal sealed class ScriptTally
 {
-    private int ran;
+    private int _ran;
 
-    public int Ran => Volatile.Read(ref ran);
+    public int Ran => Volatile.Read(ref _ran);
 
-    public void Counted() => Interlocked.Increment(ref ran);
+    public void Counted() => Interlocked.Increment(ref _ran);
 }

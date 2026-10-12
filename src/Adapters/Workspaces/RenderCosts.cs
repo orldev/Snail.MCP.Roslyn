@@ -89,27 +89,27 @@ internal static class RenderCosts
 
         foreach (var loop in loops)
         {
-            foreach (var element in loop.Elements.Where(Lambda))
+            foreach (var element in loop.Elements.Where(HasLambda))
                 found.Add(Issue("SNR002", LoopLambdaMessage, file, element.Line));
 
-            if (loop.Elements.Count > 0 && !loop.Elements.Any(Keyed))
+            if (loop.Elements.Count > 0 && !loop.Elements.Any(HasKey))
                 found.Add(Issue("SNR001", MissingKeyMessage, file, loop.Line));
         }
 
         foreach (var element in elements.Where(element =>
-                     string.Equals(element.TagName, Cascading, StringComparison.Ordinal) && !Fixed(element)))
+                     string.Equals(element.TagName, Cascading, StringComparison.Ordinal) && !IsFixed(element)))
             found.Add(Issue("SNR003", UnfixedCascadeMessage, file, element.Line));
 
         return found;
     }
 
-    private static bool Lambda(RazorMarkup.Element element) =>
+    private static bool HasLambda(RazorMarkup.Element element) =>
         element.Attributes.Any(attribute => attribute.Text.Contains("=>", StringComparison.Ordinal));
 
-    private static bool Keyed(RazorMarkup.Element element) =>
+    private static bool HasKey(RazorMarkup.Element element) =>
         element.Attributes.Any(attribute => attribute.Name == "@key");
 
-    private static bool Fixed(RazorMarkup.Element element) =>
+    private static bool IsFixed(RazorMarkup.Element element) =>
         element.Attributes.Any(attribute => attribute.Name.Equals("IsFixed", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The same three costs read off the text, for markup the grammar did not read.</summary>

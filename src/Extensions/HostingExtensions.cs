@@ -1,5 +1,5 @@
 using Microsoft.Build.Locator;
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 
 namespace Snail.MCP.Roslyn.Extensions;
@@ -15,21 +15,20 @@ public static class HostingExtensions
     extension(IHostApplicationBuilder builder)
     {
         /// <summary>Configures the server to answer sessions at an address, each naming the solution it works in.</summary>
-        public IHostApplicationBuilder ConfigureMcpServerAtAnAddress()
+        public IHostApplicationBuilder ConfigureMcpServerAtAnAddress(IConfiguration settings)
         {
             builder.UseInstalledMsBuild();
-            builder.Services.AddCodeAnalysis(builder.Configuration);
+            builder.Services.AddCodeAnalysis(settings);
             builder.Services.AddMcpTransportAtAnAddress();
 
             return builder;
         }
 
         /// <summary>Configures the server to speak stdio to the process that started it.</summary>
-        public IHostApplicationBuilder ConfigureMcpServerAsAProgram()
+        public IHostApplicationBuilder ConfigureMcpServerAsAProgram(IConfiguration settings)
         {
             builder.UseInstalledMsBuild();
-            builder.Logging.UseStderrLogging();
-            builder.Services.AddCodeAnalysis(builder.Configuration);
+            builder.Services.AddCodeAnalysis(settings);
             builder.Services.AddMcpTransportAsAProgram();
 
             return builder;

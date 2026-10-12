@@ -1,8 +1,10 @@
+using System.Text.Json.Serialization;
+
 namespace Snail.MCP.Roslyn.Domain;
 
 public sealed record RegistrationReport(
     IReadOnlyList<Registration> Items,
     IReadOnlyList<SymbolMatch> Unregistered,
     int Total,
-    bool Truncated,
+    [property: JsonPropertyName("truncated")] bool IsTruncated,
     IReadOnlyList<string> Notes);

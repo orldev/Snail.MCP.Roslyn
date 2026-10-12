@@ -62,7 +62,7 @@ public sealed class DiagnosticScopeTests(AnalysisFixture fixture)
         var page = await fixture.Diagnostics.ReadAsync(
             fixture.SolutionId, scope, IssueSeverity.Info, 200, true, CancellationToken.None);
 
-        Assert.False(page.Truncated, "A truncated page cannot be compared with another taken at a different scope.");
+        Assert.False(page.IsTruncated, "A truncated page cannot be compared with another taken at a different scope.");
 
         return page.Items.Select(issue => $"{issue.File}:{issue.Line} {issue.Id}");
     }

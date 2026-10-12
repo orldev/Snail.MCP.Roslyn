@@ -59,6 +59,11 @@ internal static class RazorMarkup
     private static Attempt Attempted(SourceText source, string fileName) =>
         Parsed.GetValue(source, text => Read(text.ToString(), fileName));
 
+    /// <summary>The elements and loops of a .razor file, or nothing when the Razor grammar could not read it
+    /// whole.</summary>
+    /// <remarks>A directive newer than this parser does not throw, it produces an error and a tree missing whatever it
+    /// could not read. Handing that back as authoritative is worse than not parsing at all, so a tree with an error is
+    /// not read.</remarks>
     private static Attempt Read(string text, string fileName)
     {
         if (!fileName.EndsWith(".razor", StringComparison.OrdinalIgnoreCase))
@@ -69,13 +74,11 @@ internal static class RazorMarkup
             var document = Engine.Process(
                 RazorSourceDocument.Create(text, fileName),
                 FileKinds.Component,
-                Array.Empty<RazorSourceDocument>(),
-                Array.Empty<TagHelperDescriptor>());
+                [],
+                []);
 
             var tree = document.GetDocumentIntermediateNode();
 
-            // A directive newer than this parser does not throw, it produces an error and a tree missing
-            // whatever it could not read. Handing that back as authoritative is worse than not parsing at all.
             if (tree.GetAllDiagnostics().Any(diagnostic => diagnostic.Severity == RazorDiagnosticSeverity.Error))
                 return Nothing;
 

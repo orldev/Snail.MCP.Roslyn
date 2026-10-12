@@ -19,7 +19,7 @@ public sealed class SymbolTools(
         [Description("Part of the symbol name; matching ignores case.")]
         string query,
         CancellationToken cancellationToken,
-        [Description("Narrow to one declaration family.")]
+        [Description("Narrow to one declaration family: Any, Type, Method, Property, Field or Event.")]
         SymbolKindFilter kind = SymbolKindFilter.Any,
         [Description("Maximum candidates to return.")]
         int limit = 30) =>

@@ -57,7 +57,7 @@ public sealed class ToolContractTests
     {
         Assert.All(Tools, tool =>
             Assert.All(
-                tool.GetParameters().Where(Asked),
+                tool.GetParameters().Where(IsAsked),
                 parameter => Assert.False(
                     string.IsNullOrWhiteSpace(parameter.GetCustomAttribute<DescriptionAttribute>()?.Description),
                     $"{tool.Name}.{parameter.Name} has no description")));
@@ -66,7 +66,7 @@ public sealed class ToolContractTests
     /// <summary>Parameters the caller fills in. The cancellation token, the progress sink and the request
     /// itself are supplied by the server, never appear in the schema, and so have nobody to describe
     /// themselves to.</summary>
-    private static bool Asked(ParameterInfo parameter) =>
+    private static bool IsAsked(ParameterInfo parameter) =>
         parameter.ParameterType != typeof(CancellationToken)
         && parameter.ParameterType != typeof(IProgress<ProgressNotificationValue>)
         && parameter.ParameterType != typeof(RequestContext<CallToolRequestParams>);
@@ -117,12 +117,12 @@ public sealed class ToolContractTests
                 StringComparison.Ordinal));
     }
 
-    /// <summary>Общая для всего флота механика зовётся одинаково у всех трёх серверов.</summary>
+    /// <summary>The mechanics shared by the whole fleet are named alike in all three servers.</summary>
     /// <remarks>
-    /// find_tool, run_tools и run_program — это не про решение, а про то, как у ЛЮБОГО сервера спрашивают,
-    /// что он умеет, и как тратят несколько его инструментов за один вызов. Платформа зовёт их как
-    /// «сервер.имя», и разнобой означал бы, что один и тот же вопрос задают трём серверам тремя способами.
-    /// Проверяется здесь, потому что имя инструмента — часть договора наружу, а не деталь.
+    /// find_tool, run_tools and run_program are not about the solution but about how ANY server is asked
+    /// what it can do, and how several of its tools are spent in one call. The platform calls them as
+    /// "server.name", and a mismatch would mean the same question is asked of three servers in three ways.
+    /// Checked here because a tool's name is part of the contract with the outside, not a detail.
     /// </remarks>
     [Fact]
     public void The_machinery_of_the_fleet_is_spelled_the_same_way_everywhere()

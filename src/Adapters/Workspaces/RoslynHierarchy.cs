@@ -8,7 +8,7 @@ internal sealed class RoslynHierarchy(IPathMap paths, SolutionCache cache) : IHi
     private const string GeneratedNote =
         "This symbol is declared only in generated code, so an empty result means 'unknown', never 'none'.";
 
-    private readonly SymbolResolver resolver = new(paths);
+    private readonly SymbolResolver _resolver = new(paths);
 
     public async Task<IReadOnlyList<SymbolMatch>> ImplementationsAsync(
         string solutionId,
@@ -17,7 +17,7 @@ internal sealed class RoslynHierarchy(IPathMap paths, SolutionCache cache) : IHi
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var symbol = await Resolve(solution, query, cancellationToken);
+        var symbol = await ResolveAsync(solution, query, cancellationToken);
 
         if (symbol is null)
             return [];
@@ -45,7 +45,7 @@ internal sealed class RoslynHierarchy(IPathMap paths, SolutionCache cache) : IHi
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var symbol = await Resolve(solution, query, cancellationToken);
+        var symbol = await ResolveAsync(solution, query, cancellationToken);
 
         if (symbol is null)
             return [];
@@ -61,7 +61,7 @@ internal sealed class RoslynHierarchy(IPathMap paths, SolutionCache cache) : IHi
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var symbol = await Resolve(solution, query, cancellationToken);
+        var symbol = await ResolveAsync(solution, query, cancellationToken);
 
         if (symbol is not INamedTypeSymbol type)
             return null;
@@ -89,9 +89,9 @@ internal sealed class RoslynHierarchy(IPathMap paths, SolutionCache cache) : IHi
             notes);
     }
 
-    private async Task<ISymbol?> Resolve(Solution solution, SymbolQuery query, CancellationToken cancellationToken)
+    private async Task<ISymbol?> ResolveAsync(Solution solution, SymbolQuery query, CancellationToken cancellationToken)
     {
-        var (symbol, _) = await resolver.PickAsync(solution, query, cancellationToken);
+        var (symbol, _) = await _resolver.PickAsync(solution, query, cancellationToken);
 
         return symbol;
     }

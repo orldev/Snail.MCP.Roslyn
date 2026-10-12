@@ -7,7 +7,7 @@ namespace Snail.MCP.Roslyn.Adapters.Paths;
 /// <summary>Maps configured root pairs and falls through to identity when no root matches.</summary>
 internal sealed class RootPathMap(IOptions<WorkspaceOptions> options) : IPathMap
 {
-    private readonly List<KeyValuePair<string, string>> roots =
+    private readonly List<KeyValuePair<string, string>> _roots =
         [.. options.Value.Roots.OrderByDescending(root => root.Key.Length)];
 
     public string ToProcess(string callerPath) => Translate(callerPath, forward: true);
@@ -21,7 +21,7 @@ internal sealed class RootPathMap(IOptions<WorkspaceOptions> options) : IPathMap
 
         var full = Path.GetFullPath(path);
 
-        foreach (var root in roots)
+        foreach (var root in _roots)
         {
             var from = forward ? root.Key : root.Value;
             var to = forward ? root.Value : root.Key;

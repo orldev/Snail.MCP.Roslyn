@@ -36,7 +36,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
         "Microsoft.AspNetCore.Components.SupplyParameterFromFormAttribute"
     ];
 
-    private readonly SymbolResolver resolver = new(paths);
+    private readonly SymbolResolver _resolver = new(paths);
 
     public async Task<AuditPage> UnusedAsync(
         string solutionId,
@@ -52,7 +52,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
         return Page(
             usage.Entries
                 .Where(entry => entry.References == 0)
-                .Where(entry => Auditable(entry.Symbol, filter, markup))
+                .Where(entry => IsAuditable(entry.Symbol, filter, markup))
                 .Select(entry => new AuditFinding(SymbolFacts.Match(entry.Symbol, paths), "no reference in the loaded solution")),
             limit,
             Caveats(solution, UnusedNote));
@@ -77,7 +77,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
         return Page(
             usage.Entries
                 .Where(entry => !entry.Projects.Any(tests.Contains))
-                .Where(entry => Auditable(entry.Symbol, filter, markup) && entry.Symbol.DeclaredAccessibility == Accessibility.Public)
+                .Where(entry => IsAuditable(entry.Symbol, filter, markup) && entry.Symbol.DeclaredAccessibility == Accessibility.Public)
                 .Select(entry => new AuditFinding(
                     SymbolFacts.Match(entry.Symbol, paths),
                     entry.References == 0 ? "used nowhere, tests included" : "used only outside the test projects")),
@@ -92,7 +92,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var (symbol, _) = await resolver.PickAsync(solution, query, cancellationToken);
+        var (symbol, _) = await _resolver.PickAsync(solution, query, cancellationToken);
 
         if (symbol is null)
             return [];
@@ -144,7 +144,7 @@ internal sealed class RoslynUsageAuditor(IPathMap paths, SolutionCache cache) : 
     private static IReadOnlyList<string> Caveats(Solution solution, string note) =>
         ProjectRestore.Missing(solution).Count > 0 ? [UnrestoredNote, note] : [note];
 
-    private static bool Auditable(ISymbol symbol, string? filter, IReadOnlyDictionary<string, string> markup)
+    private static bool IsAuditable(ISymbol symbol, string? filter, IReadOnlyDictionary<string, string> markup)
     {
         if (symbol.IsImplicitlyDeclared || symbol.IsOverride || !AttributesAllowAuditing(symbol))
             return false;

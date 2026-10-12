@@ -15,7 +15,7 @@ public static class ServiceCollectionExtensions
     {
         public IServiceCollection AddCodeAnalysis(IConfiguration configuration)
         {
-            services.Configure<WorkspaceOptions>(configuration.GetSection(WorkspaceOptions.Section));
+            services.Configure<WorkspaceOptions>(configuration);
             services.AddSingleton<IPathMap, RootPathMap>();
             services.AddSingleton<SessionReach>();
             services.AddSingleton<SessionGrant>();

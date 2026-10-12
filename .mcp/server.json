@@ -1,0 +1,100 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "name": "io.github.orldev/snail-mcp-roslyn",
+  "description": "MCP server that keeps a C# solution compiled and answers an agent faster than it loses the thread: diagnostics, symbols, references, refactoring plans and analyzers, decided by the compiler rather than text search.",
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "nuget",
+      "identifier": "Snail.MCP.Roslyn",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "packageArguments": [],
+      "environmentVariables": [
+        {
+          "name": "SNAIL_MCP_ROSLYN_PORT",
+          "description": "Port to answer on over Streamable HTTP at /mcp, on every interface, each session naming its copy as /mcp?root=<path>; unset or 0, the server speaks stdio to the process that started it.",
+          "isRequired": false,
+          "default": "0"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_SESSION_ROOTS__0",
+          "description": "A folder this process may reach at all (…__1, …__2 for more); none means wherever it can, which is right for a server started for one caller and wrong for one shared by several.",
+          "isRequired": false
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_RESTORE_ON_LOAD",
+          "description": "Whether load_solution restores packages itself when none are restored; off for a deployment that restores by other means.",
+          "isRequired": false,
+          "default": "true"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_RESTORE_SECONDS",
+          "description": "Seconds one restore may take; past it the load goes on unrestored and says so.",
+          "isRequired": false,
+          "default": "300"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_MAX_ISSUES",
+          "description": "The most diagnostics one answer lists.",
+          "isRequired": false,
+          "default": "200"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_MAX_FINDINGS",
+          "description": "The most analyzer and audit findings one answer lists.",
+          "isRequired": false,
+          "default": "200"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_MAX_RESPONSE_CHARS",
+          "description": "How large a single answer may be, serialised; a larger one is refused with its size rather than returned cut.",
+          "isRequired": false,
+          "default": "50000"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_ALLOW_SCRIPTS",
+          "description": "Whether run_script may execute C# in this process; the container, or the absence of one, is the only boundary.",
+          "isRequired": false,
+          "default": "true"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_ANALYZER_POLICY",
+          "description": "Where analyzer assemblies may be loaded from: strict (the package cache and the .NET installation), default (plus the solution's own tree) or all.",
+          "isRequired": false,
+          "default": "default"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_SCRIPT_TIMEOUT_SECONDS",
+          "description": "Seconds one run_script may take.",
+          "isRequired": false,
+          "default": "30"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_MEMORY_ADVICE_MEGABYTES",
+          "description": "Working set past which health_check advises a restart: script and analyzer assemblies are never unloaded.",
+          "isRequired": false,
+          "default": "2048"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_MAX_SOLUTIONS",
+          "description": "How many solutions stay loaded at once; the one used longest ago is dropped.",
+          "isRequired": false,
+          "default": "4"
+        },
+        {
+          "name": "SNAIL_MCP_ROSLYN_MAX_RUN_STEPS",
+          "description": "How many steps one run_tools call may take.",
+          "isRequired": false,
+          "default": "10"
+        }
+      ]
+    }
+  ],
+  "repository": {
+    "url": "https://github.com/orldev/Snail.MCP.Roslyn",
+    "source": "github"
+  }
+}

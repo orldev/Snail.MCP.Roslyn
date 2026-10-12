@@ -1,0 +1,17 @@
+<Project>
+
+    <!-- The rest of the build — language, nullable, docs, analyzers, warnings as errors — is Snail.Sdk's (global.json). -->
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+    </PropertyGroup>
+
+    <!--
+        Migration debt (Toolkit/Snail.Sdk/docs/standard.md): XML docs this server does not have yet — CS1591, 384 public
+        members of src without a summary, and CS1573, 2 parameters without a param tag beside documented ones. Writing
+        nearly four hundred summaries is a change of its own, not part of moving onto the SDK; removed as they are written.
+    -->
+    <PropertyGroup>
+        <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+    </PropertyGroup>
+
+</Project>

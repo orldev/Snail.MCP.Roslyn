@@ -176,42 +176,44 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         }
         """;
 
-    private readonly string folder = Directory.CreateTempSubdirectory("roslyn-razor").FullName;
+    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-razor").FullName;
 
-    private readonly AnalysisFixture fixture = new();
+    private readonly AnalysisFixture _fixture = new();
 
-    private string solutionId = string.Empty;
+    private string _solutionId = string.Empty;
 
+    /// <summary>Writes the components of the Blazor project and loads it.</summary>
+    /// <remarks>Two components share a leaf name in two folders: the generated hint names differ only by the directory
+    /// prefix.</remarks>
     public async Task InitializeAsync()
     {
-        await File.WriteAllTextAsync(Path.Combine(folder, "Blazing.csproj"), Project);
-        await File.WriteAllTextAsync(Path.Combine(folder, "_Imports.razor"), Imports);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Badge.razor"), Badge);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Panel.razor"), Panel);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Board.razor"), Board);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Cards.razor"), Cards);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Wide.razor"), Wide);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Rows.razor"), Rows);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Quoted.razor"), Quoted);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Braces.razor"), Braces);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Blazing.csproj"), Project);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "_Imports.razor"), Imports);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Badge.razor"), Badge);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Panel.razor"), Panel);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Board.razor"), Board);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Cards.razor"), Cards);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Wide.razor"), Wide);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Rows.razor"), Rows);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Quoted.razor"), Quoted);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Braces.razor"), Braces);
 
-        // Same leaf name in two folders: the generated hint names differ only by the directory prefix.
-        var nested = Directory.CreateDirectory(Path.Combine(folder, "Components", "Pages")).FullName;
-        await File.WriteAllTextAsync(Path.Combine(folder, "Modern.razor"), Modern);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Tile.razor"), RootTile);
+        var nested = Directory.CreateDirectory(Path.Combine(_folder, "Components", "Pages")).FullName;
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Modern.razor"), Modern);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Tile.razor"), RootTile);
         await File.WriteAllTextAsync(Path.Combine(nested, "Tile.razor"), NestedTile);
 
         await RestoreAsync();
 
-        var report = await fixture.Host.LoadAsync(folder, CancellationToken.None);
-        solutionId = report.Id;
+        var report = await _fixture.Host.LoadAsync(_folder, CancellationToken.None);
+        _solutionId = report.Id;
     }
 
     [Fact]
     public async Task ReadAsync_ComponentWithCodeBlock_MapsDeclarationsToAuthoredLinesWithUseCounts()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Badge.razor"), 1, 2000, CancellationToken.None);
 
         var component = Assert.Single(view.Symbols, symbol => symbol.Name == "Badge" && symbol.Kind == "NamedType");
         Assert.Equal(0, component.Line);
@@ -229,8 +231,8 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ReadAsync_ComponentMarkup_ReturnsComponentTagsAndDirectives()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Panel.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Panel.razor"), 1, 2000, CancellationToken.None);
 
         var tag = Assert.Single(view.Symbols, symbol => symbol.Kind == "ComponentTag");
         Assert.Equal("Badge", tag.Name);
@@ -246,8 +248,8 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ReadAsync_MarkupTheGrammarReads_SaysSoRatherThanLeavingTheWayItWasReadUnstated()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Panel.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Panel.razor"), 1, 2000, CancellationToken.None);
 
         Assert.Contains(view.Notes, note => note.Contains("read by the Razor grammar", StringComparison.Ordinal));
         Assert.DoesNotContain(view.Notes, note => note.Contains("scanning the text", StringComparison.Ordinal));
@@ -256,13 +258,13 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task FindAsync_ParameterIdFromOutline_ReturnsAuthoredMarkupPositions()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Badge.razor"), 1, 2000, CancellationToken.None);
 
         var label = Assert.Single(view.Symbols, symbol => symbol.Name == "Label");
 
-        var references = await fixture.References.FindAsync(
-            solutionId, new SymbolQuery(label.Id, null, null, 0, 0), 10, CancellationToken.None);
+        var references = await _fixture.References.FindAsync(
+            _solutionId, new SymbolQuery(label.Id, null, null, 0, 0), 10, CancellationToken.None);
 
         Assert.Contains(references.Items, reference =>
             reference.File.EndsWith("Panel.razor", StringComparison.Ordinal) && reference.Line > 0);
@@ -271,7 +273,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task UnusedAsync_ComponentMembers_ReportsOnlyUnusedOnesAtAuthoredLocations()
     {
-        var page = await fixture.Auditor.UnusedAsync(solutionId, null, 300, CancellationToken.None);
+        var page = await _fixture.Auditor.UnusedAsync(_solutionId, null, 300, CancellationToken.None);
 
         var ghost = Assert.Single(page.Items, finding => finding.Symbol.Name == "Ghost");
         Assert.True(ghost.Symbol.File?.EndsWith("Badge.razor", StringComparison.Ordinal), "The finding must point at the authored file.");
@@ -288,15 +290,15 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task SearchAsync_ComponentAndItsMembers_PointAtTheMarkupFile()
     {
-        var members = await fixture.Symbols.SearchAsync(
-            solutionId, "Label", SymbolKindFilter.Any, 30, CancellationToken.None);
+        var members = await _fixture.Symbols.SearchAsync(
+            _solutionId, "Label", SymbolKindFilter.Any, 30, CancellationToken.None);
 
         var label = Assert.Single(members, match => match.Name == "Label" && match.Container == "Blazing.Badge");
         Assert.True(label.File?.EndsWith("Badge.razor", StringComparison.Ordinal), "A @code member must point at its authored file.");
         Assert.Equal(5, label.Line);
 
-        var types = await fixture.Symbols.SearchAsync(
-            solutionId, "Badge", SymbolKindFilter.Type, 30, CancellationToken.None);
+        var types = await _fixture.Symbols.SearchAsync(
+            _solutionId, "Badge", SymbolKindFilter.Type, 30, CancellationToken.None);
 
         var badge = Assert.Single(types, match => match.Name == "Badge");
         Assert.True(badge.File?.EndsWith("Badge.razor", StringComparison.Ordinal), "A component must point at its markup file, not into obj/.");
@@ -307,15 +309,15 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PlanAsync_MultilineTagAndCommentedTag_EditsOnlyTheRealTag()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Wide.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Wide.razor"), 1, 2000, CancellationToken.None);
 
         var tag = Assert.Single(view.Symbols, symbol => symbol.Kind == "ComponentTag");
         Assert.Equal("Badge", tag.Name);
         Assert.Equal(3, tag.Line);
 
-        var plan = await fixture.Renames.PlanAsync(
-            solutionId, new SymbolQuery(tag.Id, null, null, 0, 0), "Chip", new RenameScope(), CancellationToken.None);
+        var plan = await _fixture.Renames.PlanAsync(
+            _solutionId, new SymbolQuery(tag.Id, null, null, 0, 0), "Chip", new RenameScope(), CancellationToken.None);
 
         var wide = Assert.Single(plan.Edits, edit => edit.File.EndsWith("Wide.razor", StringComparison.Ordinal));
         var opening = Assert.Single(wide.Lines);
@@ -323,14 +325,14 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         Assert.Contains("<Chip", opening.After, StringComparison.Ordinal);
     }
 
+    /// <remarks>Asserted as one string so a failure names every issue that did come back. This test has failed
+    /// intermittently and Assert.Single reports only that a count was wrong, not what was found instead.</remarks>
     [Fact]
     public async Task ReadAsync_MarkupWithRenderCosts_ReportsSnrIssuesAtTheirLines()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Board.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Board.razor"), 1, 2000, CancellationToken.None);
 
-        // Asserted as one string so a failure names every issue that did come back. This test has failed
-        // intermittently and Assert.Single reports only that a count was wrong, not what was found instead.
         var costs = string.Join(
             ", ",
             view.Issues.Items
@@ -344,8 +346,8 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ReadAsync_LambdaOnComponentInsideKeyedLoop_ReportsSnr002AtTheTag()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Rows.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Rows.razor"), 1, 2000, CancellationToken.None);
 
         var lambda = Assert.Single(view.Issues.Items, issue => issue.Id == "SNR002");
 
@@ -356,13 +358,13 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PlanAsync_Component_RewritesMarkupTagsAndRenamesItsFile()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Badge.razor"), 1, 2000, CancellationToken.None);
 
         var component = Assert.Single(view.Symbols, symbol => symbol.Name == "Badge" && symbol.Kind == "NamedType");
 
-        var plan = await fixture.Renames.PlanAsync(
-            solutionId, new SymbolQuery(component.Id, null, null, 0, 0), "Chip", new RenameScope(), CancellationToken.None);
+        var plan = await _fixture.Renames.PlanAsync(
+            _solutionId, new SymbolQuery(component.Id, null, null, 0, 0), "Chip", new RenameScope(), CancellationToken.None);
 
         var panel = Assert.Single(plan.Edits, edit => edit.File.EndsWith("Panel.razor", StringComparison.Ordinal));
         var line = Assert.Single(panel.Lines);
@@ -382,7 +384,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task CheckAsync_RepeatedMarkupBlock_IsReportedAsExtractionCandidate()
     {
-        var report = await fixture.Surveyor.CheckAsync(solutionId, 50, CancellationToken.None);
+        var report = await _fixture.Surveyor.CheckAsync(_solutionId, 50, CancellationToken.None);
 
         var finding = Assert.Single(report.Findings, candidate => candidate.Rule == "markup-duplication");
 
@@ -396,13 +398,13 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PlanAsync_ComponentParameter_EditsAttributeAssignmentsInConsumerMarkup()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Badge.razor"), 1, 2000, CancellationToken.None);
 
         var label = Assert.Single(view.Symbols, symbol => symbol.Name == "Label");
 
-        var plan = await fixture.Renames.PlanAsync(
-            solutionId, new SymbolQuery(label.Id, null, null, 0, 0), "Caption", new RenameScope(), CancellationToken.None);
+        var plan = await _fixture.Renames.PlanAsync(
+            _solutionId, new SymbolQuery(label.Id, null, null, 0, 0), "Caption", new RenameScope(), CancellationToken.None);
 
         var badge = Assert.Single(plan.Edits, edit => edit.File.EndsWith("Badge.razor", StringComparison.Ordinal));
         var declaration = Assert.Single(badge.Lines, line => line.Line == 5);
@@ -424,10 +426,10 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ExtractAsync_BlockWithUnresolvedNames_NamesLeaksThenPlansCleanlyOnceMapped()
     {
-        var cards = Path.Combine(folder, "Cards.razor");
+        var cards = Path.Combine(_folder, "Cards.razor");
 
-        var probe = await fixture.Extractor.ExtractAsync(
-            solutionId, new ExtractionRequest(cards, 1, 4, "TCard", null, null, null, null), CancellationToken.None);
+        var probe = await _fixture.Extractor.ExtractAsync(
+            _solutionId, new ExtractionRequest(cards, 1, 4, "TCard", null, null, null, null), CancellationToken.None);
 
         Assert.Contains("LeftTitle", probe.Unresolved);
         Assert.DoesNotContain("Badge", probe.Unresolved);
@@ -435,8 +437,8 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         Assert.Null(probe.Replacement);
         Assert.Contains(probe.Notes, note => note.Contains("substitutions", StringComparison.Ordinal));
 
-        var plan = await fixture.Extractor.ExtractAsync(
-            solutionId,
+        var plan = await _fixture.Extractor.ExtractAsync(
+            _solutionId,
             new ExtractionRequest(
                 cards,
                 1,
@@ -465,9 +467,9 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ExtractAsync_RangeCuttingAnElementApart_IsRefusedWithoutEdits()
     {
-        var plan = await fixture.Extractor.ExtractAsync(
-            solutionId,
-            new ExtractionRequest(Path.Combine(folder, "Cards.razor"), 2, 4, "TCard", null, null, null, null),
+        var plan = await _fixture.Extractor.ExtractAsync(
+            _solutionId,
+            new ExtractionRequest(Path.Combine(_folder, "Cards.razor"), 2, 4, "TCard", null, null, null, null),
             CancellationToken.None);
 
         Assert.Empty(plan.Edits);
@@ -478,25 +480,25 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ExtractAsync_BlockFullyInsideContainer_IsNotRefusedAsBoundaryCut()
     {
-        var probe = await fixture.Extractor.ExtractAsync(
-            solutionId,
-            new ExtractionRequest(Path.Combine(folder, "Cards.razor"), 2, 3, "TCardBody", null, null, null, null),
+        var probe = await _fixture.Extractor.ExtractAsync(
+            _solutionId,
+            new ExtractionRequest(Path.Combine(_folder, "Cards.razor"), 2, 3, "TCardBody", null, null, null, null),
             CancellationToken.None);
 
         Assert.DoesNotContain(probe.Notes, note => note.Contains("cut it apart", StringComparison.Ordinal));
         Assert.Contains("LeftTitle", probe.Unresolved);
     }
 
+    /// <remarks>Line 5, not 3: the tag inside the Razor comment is excluded, which only the element tree does.
+    /// @rendermode is unknown to the 6.0 grammar but reads as an expression, so the tree survives it.</remarks>
     [Fact]
     public async Task ReadAsync_MarkupWithAPostSixDirective_StillReadsElementsFromTheParser()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Modern.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Modern.razor"), 1, 2000, CancellationToken.None);
 
         var tag = Assert.Single(view.Symbols, symbol => symbol.Kind == "ComponentTag");
 
-        // Line 5, not 3: the tag inside the Razor comment is excluded, which only the element tree does.
-        // @rendermode is unknown to the 6.0 grammar but reads as an expression, so the tree survives it.
         Assert.Equal(5, tag.Line);
     }
 
@@ -505,13 +507,13 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task PlanAsync_ClosingTagInsideAnAttributeValue_IsLeftAlone()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Badge.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Badge.razor"), 1, 2000, CancellationToken.None);
 
         var component = Assert.Single(view.Symbols, symbol => symbol.Name == "Badge" && symbol.Kind == "NamedType");
 
-        var plan = await fixture.Renames.PlanAsync(
-            solutionId,
+        var plan = await _fixture.Renames.PlanAsync(
+            _solutionId,
             new SymbolQuery(component.Id, null, null, 0, 0),
             "Chip",
             new RenameScope(true, true, false, false),
@@ -528,11 +530,12 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 
     /// <summary>Where a loop ends is a question about the block, not about the braces on the lines: a brace in
     /// markup text is text, and counting it swallowed everything below the loop.</summary>
+    /// <remarks>The lambda on line 8 is outside the loop, so it costs nothing per item and is not a finding.</remarks>
     [Fact]
     public async Task ReadAsync_BraceInMarkupTextInsideALoop_KeepsTheLoopFromSwallowingWhatFollowsIt()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Braces.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Braces.razor"), 1, 2000, CancellationToken.None);
 
         var costs = string.Join(
             ", ",
@@ -540,15 +543,14 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
                 .Where(issue => issue.Id.StartsWith("SNR", StringComparison.Ordinal))
                 .Select(issue => $"{issue.Id}@{issue.Line}"));
 
-        // The lambda on line 8 is outside the loop, so it costs nothing per item and is not a finding.
         Assert.Equal("SNR001@1", costs);
     }
 
     [Fact]
     public async Task ReadAsync_ComponentInNestedFolder_MapsToItsOwnGeneratedCode()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Components", "Pages", "Tile.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Components", "Pages", "Tile.razor"), 1, 2000, CancellationToken.None);
 
         var component = Assert.Single(view.Symbols, symbol => symbol.Kind == "NamedType");
 
@@ -559,8 +561,8 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ReadAsync_ComponentSharingItsLeafNameWithANestedOne_MapsToItsOwnGeneratedCode()
     {
-        var view = await fixture.Reader.ReadAsync(
-            solutionId, Path.Combine(folder, "Tile.razor"), 1, 2000, CancellationToken.None);
+        var view = await _fixture.Reader.ReadAsync(
+            _solutionId, Path.Combine(_folder, "Tile.razor"), 1, 2000, CancellationToken.None);
 
         var component = Assert.Single(view.Symbols, symbol => symbol.Kind == "NamedType");
 
@@ -572,7 +574,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
     [Fact]
     public async Task ReadAsync_MarkupEditedAfterLoading_IsReadFreshFromDisk()
     {
-        var badge = Path.Combine(folder, "Badge.razor");
+        var badge = Path.Combine(_folder, "Badge.razor");
         var edited = Badge.Replace("public int Doubled()", "public int Tripled()", StringComparison.Ordinal);
 
         await File.WriteAllTextAsync(badge, edited);
@@ -580,7 +582,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 
         try
         {
-            var view = await fixture.Reader.ReadAsync(solutionId, badge, 1, 2000, CancellationToken.None);
+            var view = await _fixture.Reader.ReadAsync(_solutionId, badge, 1, 2000, CancellationToken.None);
 
             Assert.Single(view.Symbols, symbol => symbol.Name == "Tripled");
             Assert.DoesNotContain(view.Symbols, symbol => symbol.Name == "Doubled");
@@ -595,15 +597,15 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
 
     public void Dispose()
     {
-        fixture.Dispose();
-        Directory.Delete(folder, recursive: true);
+        _fixture.Dispose();
+        Directory.Delete(_folder, recursive: true);
     }
 
     private async Task RestoreAsync()
     {
         var restore = Process.Start(new ProcessStartInfo("dotnet", "restore")
         {
-            WorkingDirectory = folder,
+            WorkingDirectory = _folder,
             RedirectStandardOutput = true,
             RedirectStandardError = true
         }) ?? throw new InvalidOperationException("dotnet restore did not start.");

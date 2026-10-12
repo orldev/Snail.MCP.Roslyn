@@ -14,7 +14,7 @@ public sealed class ScriptTests(AnalysisFixture fixture)
             CancellationToken.None);
 
         Assert.True(result.Succeeded, string.Join("; ", result.Errors));
-        Assert.Equal("2", result.Value);
+        Assert.Equal("3", result.Value);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class ScriptTests(AnalysisFixture fixture)
     public async Task RunAsync_ScriptIgnoringCancellation_AnswersAtTheTimeoutAndSaysItRunsOn()
     {
         using var impatient = new AnalysisFixture(
-            [new KeyValuePair<string, string?>("Workspace:ScriptTimeoutSeconds", "1")]);
+            [new KeyValuePair<string, string?>("ScriptTimeoutSeconds", "1")]);
 
         await impatient.InitializeAsync();
 

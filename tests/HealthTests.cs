@@ -36,23 +36,23 @@ public sealed class MemoryAdviceTests : IDisposable
         </Project>
         """;
 
-    private readonly string folder = Directory.CreateTempSubdirectory("roslyn-memory").FullName;
+    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-memory").FullName;
 
     [Fact]
     public async Task HealthAsync_WorkingSetPastTheCeiling_SaysARestartIsWhatRecoversIt()
     {
-        await File.WriteAllTextAsync(Path.Combine(folder, "Tiny.csproj"), Project);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Widget.cs"), "namespace Tiny;\n\npublic sealed class Widget;\n");
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Tiny.csproj"), Project);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Widget.cs"), "namespace Tiny;\n\npublic sealed class Widget;\n");
 
         using var fixture = new AnalysisFixture(
-            [new KeyValuePair<string, string?>("Workspace:MemoryAdviceMegabytes", "1")]);
+            [new KeyValuePair<string, string?>("MemoryAdviceMegabytes", "1")]);
 
-        var loaded = await fixture.Host.LoadAsync(folder, CancellationToken.None);
+        var loaded = await fixture.Host.LoadAsync(_folder, CancellationToken.None);
         var health = await fixture.Surveyor.HealthAsync(loaded.Id, CancellationToken.None);
 
         Assert.True(health.WorkingSetMegabytes > 1);
         Assert.Contains(health.Notes, note => note.Contains("restart the server", StringComparison.Ordinal));
     }
 
-    public void Dispose() => Directory.Delete(folder, recursive: true);
+    public void Dispose() => Directory.Delete(_folder, recursive: true);
 }

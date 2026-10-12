@@ -23,13 +23,13 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
     private const string BlockedNote =
         "Some analyzer assemblies were not run: they live outside the package cache, the .NET installation and "
         + "the solution, "
-        + "and an analyzer is arbitrary code executed in this process. Set Workspace:AnalyzerPolicy to 'all' to run them anyway.";
+        + "and an analyzer is arbitrary code executed in this process. Set SNAIL_MCP_ROSLYN_ANALYZER_POLICY to 'all' to run them anyway.";
 
     private const string FixNote =
         "Fixes are proposals from the compiler's own providers, returned as edits. This tool never writes to disk. "
         + "A fix that compiles is not automatically a fix that is right.";
 
-    private readonly SolutionEdits editor = new(paths);
+    private readonly SolutionEdits _editor = new(paths);
 
     public async Task<AnalyzerPage> RunAsync(
         string solutionId,
@@ -189,7 +189,7 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
             var operations = await action.GetOperationsAsync(cancellationToken);
             var applied = operations.OfType<ApplyChangesOperation>().FirstOrDefault();
 
-            return applied is null ? [] : await editor.BetweenAsync(before, applied.ChangedSolution, cancellationToken);
+            return applied is null ? [] : await _editor.BetweenAsync(before, applied.ChangedSolution, cancellationToken);
         }
         catch (Exception)
         {

@@ -142,7 +142,7 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
         List<string> notes,
         CancellationToken cancellationToken)
     {
-        if (await BaselineBrokenAsync(markup, cancellationToken))
+        if (await IsBaselineBrokenAsync(markup, cancellationToken))
             notes.Add(BaselineNote);
 
         var forked = solution.WithAdditionalDocumentText(markup.Id, SourceText.From(candidate));
@@ -176,7 +176,7 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
         return [.. unresolved];
     }
 
-    private static async Task<bool> BaselineBrokenAsync(TextDocument markup, CancellationToken cancellationToken)
+    private static async Task<bool> IsBaselineBrokenAsync(TextDocument markup, CancellationToken cancellationToken)
     {
         var compilation = await markup.Project.GetCompilationAsync(cancellationToken);
         var generated = await MarkupMap.FindGeneratedAsync(markup.Project, markup, cancellationToken);

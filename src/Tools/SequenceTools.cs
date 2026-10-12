@@ -34,7 +34,7 @@ public sealed class SequenceTools(IEnumerable<McpServerTool> tools, IOptions<Wor
 {
     [McpServerTool(Name = "run_tools", ReadOnly = false, Destructive = true, OpenWorld = true)]
     [Description(ToolDescriptions.RunTools)]
-    public async Task<JsonObject> RunTools(
+    public async Task<JsonObject> RunToolsAsync(
         RequestContext<CallToolRequestParams> context,
         [Description(ToolDescriptions.RunToolsSteps)] ToolStep[] steps,
         CancellationToken cancellationToken = default)

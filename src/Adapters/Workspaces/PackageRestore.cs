@@ -21,7 +21,7 @@ internal sealed class PackageRestore(IOptions<WorkspaceOptions> options, ILogger
     /// <summary>What happened, for the report; null when the solution was already restored or the deployment forbids it.</summary>
     public async Task<string?> EnsureAsync(string entry, CancellationToken cancellationToken)
     {
-        if (!options.Value.RestoreOnLoad || !Missing(entry))
+        if (!options.Value.ShouldRestoreOnLoad || !HasUnrestoredProject(entry))
             return null;
 
         var seconds = Math.Max(1, options.Value.RestoreSeconds);
@@ -37,26 +37,26 @@ internal sealed class PackageRestore(IOptions<WorkspaceOptions> options, ILogger
 
             if (code == 0)
             {
-                log.LogInformation("Restored {Entry} in {Elapsed} ms", entry, elapsed);
+                Log.Restored(log, entry, elapsed);
 
                 return $"Packages were not restored, so this server restored them: 'dotnet restore' took {elapsed} ms.";
             }
 
-            log.LogWarning("Restore of {Entry} exited with {Code}: {Output}", entry, code, output);
+            Log.RestoreExited(log, entry, code, output);
 
             return $"Packages are not restored and 'dotnet restore' failed with exit code {code}, so semantic answers "
                    + $"under-report until it succeeds: {Cut(output)}";
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            log.LogWarning("Restore of {Entry} passed its {Seconds} s limit", entry, seconds);
+            Log.RestoreTimedOut(log, entry, seconds);
 
             return $"Packages are not restored and 'dotnet restore' passed its limit of {seconds} s, so semantic "
-                   + "answers under-report. Restore the solution outside this server, or raise Workspace:RestoreSeconds.";
+                   + "answers under-report. Restore the solution outside this server, or raise SNAIL_MCP_ROSLYN_RESTORE_SECONDS.";
         }
         catch (Exception error)
         {
-            log.LogError(error, "Restore of {Entry} could not be started", entry);
+            Log.RestoreNotStarted(log, error, entry);
 
             return $"Packages are not restored and 'dotnet restore' could not be started, so semantic answers "
                    + $"under-report: {error.Message}";
@@ -71,7 +71,7 @@ internal sealed class PackageRestore(IOptions<WorkspaceOptions> options, ILogger
     /// solution exists. One unrestored project is enough: restore is a whole-solution operation, and a
     /// partly restored tree is what a half-finished one leaves behind.
     /// </remarks>
-    private static bool Missing(string entry)
+    private static bool HasUnrestoredProject(string entry)
     {
         var root = Path.GetDirectoryName(entry);
 
@@ -118,6 +118,9 @@ internal sealed class PackageRestore(IOptions<WorkspaceOptions> options, ILogger
         return (process.ExitCode, $"{await output}\n{await errors}".Trim());
     }
 
+    /// <summary>Kills the restore and whatever it started.</summary>
+    /// <remarks>A process that ended on its own between the check and the kill needs nothing, so a kill that fails is
+    /// ignored.</remarks>
     private static void Stop(Process process)
     {
         try
@@ -127,7 +130,6 @@ internal sealed class PackageRestore(IOptions<WorkspaceOptions> options, ILogger
         }
         catch (Exception)
         {
-            // a process that ended on its own between the check and the kill needs nothing
         }
     }
 

@@ -272,15 +272,16 @@ internal sealed class RoslynSurveyor(
         return [.. cycles.Distinct(StringComparer.Ordinal)];
     }
 
-    private IReadOnlyList<SymbolMatch> Hotspots(SolutionUsage usage, int cap) =>
-    [
-        .. usage.Entries
-            .Where(entry => entry.Symbol.Kind == SymbolKind.NamedType && entry.References > 0)
+    private IReadOnlyList<SymbolMatch> Hotspots(SolutionUsage usage, int cap)
+    {
+        var used = usage.Entries.Where(entry => entry.Symbol.Kind == SymbolKind.NamedType && entry.References > 0);
+        var ranked = used
             .OrderByDescending(entry => entry.Files.Count)
-            .ThenByDescending(entry => entry.References)
-            .Take(Math.Min(cap, 20))
-            .Select(entry => SymbolFacts.Match(entry.Symbol, paths))
-    ];
+            .ThenByDescending(entry => entry.References);
+        var top = ranked.Take(Math.Min(cap, 20));
+
+        return [.. top.Select(entry => SymbolFacts.Match(entry.Symbol, paths))];
+    }
 
     private IEnumerable<CodeIssue> Top(IEnumerable<Diagnostic> diagnostics, int cap) =>
         diagnostics

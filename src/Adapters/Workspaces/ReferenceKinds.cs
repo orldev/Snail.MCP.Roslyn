@@ -15,7 +15,7 @@ internal static class ReferenceKinds
         if (name is null)
             return node.FirstAncestorOrSelf<ConstructorInitializerSyntax>() is not null ? "invocation" : "usage";
 
-        if (InsideNameof(name))
+        if (IsInsideNameof(name))
             return "nameof";
 
         if (name.FirstAncestorOrSelf<XmlCrefAttributeSyntax>() is not null || name.FirstAncestorOrSelf<CrefSyntax>() is not null)
@@ -24,10 +24,10 @@ internal static class ReferenceKinds
         if (name.FirstAncestorOrSelf<AttributeSyntax>() is { } attribute && attribute.Name.Span.Contains(name.Span))
             return "attribute";
 
-        return TypeLike(symbol) ? ClassifyType(name, symbol) : ClassifyMember(name, symbol);
+        return IsTypeLike(symbol) ? ClassifyType(name, symbol) : ClassifyMember(name, symbol);
     }
 
-    private static bool TypeLike(ISymbol symbol) =>
+    private static bool IsTypeLike(ISymbol symbol) =>
         symbol is INamedTypeSymbol or ITypeParameterSymbol or INamespaceSymbol
             or IMethodSymbol { MethodKind: MethodKind.Constructor };
 
@@ -65,7 +65,7 @@ internal static class ReferenceKinds
     private static string ClassifyMember(SimpleNameSyntax name, ISymbol symbol)
     {
         if (symbol is IMethodSymbol)
-            return Invoked(name) ? "invocation" : "method_group";
+            return IsInvoked(name) ? "invocation" : "method_group";
 
         if (symbol is not (IPropertySymbol or IFieldSymbol or IEventSymbol or ILocalSymbol or IParameterSymbol))
             return "usage";
@@ -82,7 +82,7 @@ internal static class ReferenceKinds
         return "read";
     }
 
-    private static bool Invoked(SimpleNameSyntax name)
+    private static bool IsInvoked(SimpleNameSyntax name)
     {
         var expression = name.Parent is MemberAccessExpressionSyntax { Name: { } accessed } access && accessed == name
             ? (ExpressionSyntax)access
@@ -96,7 +96,7 @@ internal static class ReferenceKinds
             ? access
             : name;
 
-    private static bool InsideNameof(SimpleNameSyntax name) =>
+    private static bool IsInsideNameof(SimpleNameSyntax name) =>
         name.FirstAncestorOrSelf<InvocationExpressionSyntax>(invocation =>
             invocation.Expression is IdentifierNameSyntax { Identifier.ValueText: "nameof" }) is not null;
 }

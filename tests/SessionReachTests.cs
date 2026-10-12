@@ -5,9 +5,9 @@ using Snail.MCP.Roslyn.Configuration;
 namespace Snail.MCP.Roslyn.Tests;
 
 /// <summary>
-/// Насколько далеко дотягивается сессия, стоящая перед сервером. Один процесс на одного вызывающего
-/// этого вопроса не знал: что попросили загрузить, то и его. Контейнер, общий на машину, — другое
-/// животное: рабочая копия у каждого воркера своя, и весь смысл в том, чтобы никто не дотянулся до чужой.
+/// How far the session in front of the server reaches. One process per caller never had this question:
+/// whatever it was asked to load was its own. A container shared by a machine is another
+/// animal: each worker has its own working copy, and the whole point is that nobody reaches another's.
 /// </summary>
 public sealed class SessionReachTests
 {
@@ -20,17 +20,17 @@ public sealed class SessionReachTests
         Assert.False(reach.Allows("/workspaces/task-2/src/App.csproj"));
     }
 
-    /// <summary>Сосед, чьё имя лишь начинается так же, — классический способ выйти из клетки.</summary>
+    /// <summary>A sibling whose name merely begins the same way is the classic way out of the cage.</summary>
     [Fact]
     public void A_sibling_whose_name_merely_begins_the_same_way_is_not_inside() =>
         Assert.False(Opened(at: "/workspaces/task-1").Allows("/workspaces/task-1-secrets/App.csproj"));
 
-    /// <summary>Сервер, поднятый ради одного вызывающего, не назовёт корня — и это не дыра, а его устройство.</summary>
+    /// <summary>A server started for one caller names no root — and that is not a hole but how it is built.</summary>
     [Fact]
     public void A_session_that_named_nothing_reaches_wherever_the_process_can() =>
         Assert.True(Opened(at: null).Allows("/anywhere/at/all.csproj"));
 
-    /// <summary>Настроенный корень стоит там, где адреса нет: так запертый программой сервер и запирается.</summary>
+    /// <summary>A configured root stands where there is no address: that is how a server run as a program is confined.</summary>
     [Fact]
     public void A_configured_root_stands_when_the_address_names_none()
     {
@@ -40,7 +40,7 @@ public sealed class SessionReachTests
         Assert.False(reach.Allows("/etc/passwd"));
     }
 
-    /// <summary>Симлинк внутри корня — самый дешёвый способ выйти за него, поэтому ссылки раскрываются.</summary>
+    /// <summary>A symlink inside the root is the cheapest way out of it, so links are resolved.</summary>
     [Fact]
     public void A_symlink_that_leads_out_of_the_root_does_not_pass_as_a_path_inside_it()
     {
@@ -62,8 +62,8 @@ public sealed class SessionReachTests
     }
 
     /// <summary>
-    /// Ссылка ПОСЕРЕДИНЕ пути: ResolveLinkTarget отвечает только про последний сегмент, поэтому
-    /// /копия/out/решение.sln раскрывался сам в себя и уходил за корень. Нашлось на filesystem-сервере.
+    /// A link in the MIDDLE of the path: ResolveLinkTarget answers only about the last segment, so
+    /// /copy/out/solution.sln resolved to itself and escaped the root. Found on the filesystem server.
     /// </summary>
     [Fact]
     public void A_symlink_in_the_middle_of_the_path_does_not_pass_as_a_path_inside_the_root()
@@ -85,7 +85,7 @@ public sealed class SessionReachTests
         }
     }
 
-    /// <summary>Отказ называет корень: иначе человек читает «нельзя» и не знает, куда можно.</summary>
+    /// <summary>The refusal names the root: otherwise a person reads "not allowed" and does not know where is.</summary>
     [Fact]
     public void The_refusal_names_where_the_session_does_work() =>
         Assert.Contains("/workspaces/task-1", Opened(at: "/workspaces/task-1").Refusal("/elsewhere"), StringComparison.Ordinal);

@@ -1,8 +1,8 @@
 namespace Snail.MCP.Roslyn.Tests;
 
 /// <summary>
-/// Ради этого сервер и переехал в контейнер: он живёт дольше шага. Открытие решения — дорогая часть,
-/// секунды на маленьком репозитории и минуты на большом, и процесс, живший один шаг, платил её каждый раз.
+/// This is why the server moved into a container: it outlives a step. Opening a solution is the expensive part,
+/// seconds on a small repository and minutes on a large one, and a process that lived one step paid it every time.
 /// </summary>
 public sealed class WarmCacheTests : IDisposable
 {
@@ -15,44 +15,44 @@ public sealed class WarmCacheTests : IDisposable
         </Project>
         """;
 
-    private readonly string folder = Directory.CreateTempSubdirectory("roslyn-warm").FullName;
+    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-warm").FullName;
 
     [Fact]
     public async Task LoadAsync_SolutionAlreadyLoaded_IsReusedRatherThanOpenedAgain()
     {
-        await File.WriteAllTextAsync(Path.Combine(folder, "Warm.csproj"), Project);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Widget.cs"), "namespace Warm; public sealed class Widget;");
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Warm.csproj"), Project);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Widget.cs"), "namespace Warm; public sealed class Widget;");
 
         using var fixture = new AnalysisFixture();
 
-        var first = await fixture.Host.LoadAsync(folder, CancellationToken.None);
-        var second = await fixture.Host.LoadAsync(folder, CancellationToken.None);
+        var first = await fixture.Host.LoadAsync(_folder, CancellationToken.None);
+        var second = await fixture.Host.LoadAsync(_folder, CancellationToken.None);
 
         Assert.Equal(first.Id, second.Id);
         Assert.DoesNotContain(first.Notes, note => note.Contains("was reused", StringComparison.Ordinal));
         Assert.Contains(second.Notes, note => note.Contains("was reused", StringComparison.Ordinal));
-        Assert.True(second.ElapsedMilliseconds < first.ElapsedMilliseconds, $"{second.ElapsedMilliseconds} ms против {first.ElapsedMilliseconds} ms");
+        Assert.True(second.ElapsedMilliseconds < first.ElapsedMilliseconds, $"{second.ElapsedMilliseconds} ms against {first.ElapsedMilliseconds} ms");
     }
 
-    /// <summary>Правка, сделанная шагом, видна следующему: кэш переиспользуется, но не устаревает.</summary>
+    /// <summary>An edit made by one step is seen by the next: the cache is reused, but does not go stale.</summary>
     [Fact]
     public async Task A_file_changed_between_loads_is_read_again()
     {
-        var source = Path.Combine(folder, "Widget.cs");
+        var source = Path.Combine(_folder, "Widget.cs");
 
-        await File.WriteAllTextAsync(Path.Combine(folder, "Warm.csproj"), Project);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Warm.csproj"), Project);
         await File.WriteAllTextAsync(source, "namespace Warm; public sealed class Widget;");
 
         using var fixture = new AnalysisFixture();
 
-        await fixture.Host.LoadAsync(folder, CancellationToken.None);
+        await fixture.Host.LoadAsync(_folder, CancellationToken.None);
         await File.WriteAllTextAsync(source, "namespace Warm; public sealed class Gadget;");
 
-        var reloaded = await fixture.Host.LoadAsync(folder, CancellationToken.None);
+        var reloaded = await fixture.Host.LoadAsync(_folder, CancellationToken.None);
         var found = await fixture.Symbols.SearchAsync(reloaded.Id, "Gadget", SymbolKindFilter.Any, 10, CancellationToken.None);
 
         Assert.Contains(found, symbol => symbol.Name == "Gadget");
     }
 
-    public void Dispose() => Directory.Delete(folder, recursive: true);
+    public void Dispose() => Directory.Delete(_folder, recursive: true);
 }

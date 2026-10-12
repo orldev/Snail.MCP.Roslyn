@@ -31,7 +31,7 @@ public sealed class ConcurrencyTests(AnalysisFixture fixture)
 
         Assert.Contains("SymbolResolver", (await read).Text, StringComparison.Ordinal);
         Assert.Contains(await search, match => match.Name == nameof(RepositoryPaths));
-        Assert.Equal(2, (await overview).Projects);
+        Assert.Equal(3, (await overview).Projects);
         Assert.Equal(WorkspaceReadiness.Ready, (await health).Readiness);
     }
 }

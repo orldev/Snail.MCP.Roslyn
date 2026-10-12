@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Snail.MCP.Roslyn.Domain;
 
 public sealed record HealthReport(
@@ -12,5 +14,5 @@ public sealed record HealthReport(
     int ForeignAssemblies,
     int ScriptsRun,
     int LoadedSolutions,
-    bool ScriptingEnabled,
+    [property: JsonPropertyName("scriptingEnabled")] bool IsScriptingEnabled,
     IReadOnlyList<string> Notes);

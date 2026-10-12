@@ -38,7 +38,7 @@ internal sealed class MarkupEdits(IPathMap paths)
     }
 
     /// <summary>True when exactly one component in the solution bears this name, so a tag attributes mechanically.</summary>
-    public static async Task<bool> UniquelyNamedAsync(
+    public static async Task<bool> IsUniquelyNamedAsync(
         Solution solution,
         ISymbol symbol,
         CancellationToken cancellationToken)
@@ -105,6 +105,8 @@ internal sealed class MarkupEdits(IPathMap paths)
 
     /// <summary>The opening and closing tag name positions of one parsed element, when it names the component —
     /// directly or as the last segment of a qualified tag.</summary>
+    /// <remarks>An element's own closing tag ends its span. Anything else inside that looks like one belongs to a
+    /// nested element, an attribute value or a comment — a text search rewrote those too.</remarks>
     private static void TagSpansOf(
         RazorMarkup.Element element,
         string name,
@@ -129,8 +131,6 @@ internal sealed class MarkupEdits(IPathMap paths)
         if (element.Start + element.Length > text.Length)
             return;
 
-        // An element's own closing tag ends its span. Anything else inside that looks like one belongs to a
-        // nested element, an attribute value or a comment — a text search rewrote those too.
         var slice = text.ToString(new TextSpan(element.Start, element.Length));
         var opened = slice.LastIndexOf("</", StringComparison.Ordinal);
 

@@ -5,7 +5,7 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
 internal sealed class RoslynSymbols(IPathMap paths, SolutionCache cache) : ISymbolLookup
 {
-    private readonly SymbolResolver resolver = new(paths);
+    private readonly SymbolResolver _resolver = new(paths);
 
     public async Task<IReadOnlyList<SymbolMatch>> SearchAsync(
         string solutionId,
@@ -31,15 +31,13 @@ internal sealed class RoslynSymbols(IPathMap paths, SolutionCache cache) : ISymb
 
         var markup = await MarkupMap.BuildAsync(solution, cancellationToken);
 
-        return
-        [
-            .. all
-                .Where(symbol => SymbolFacts.Matches(symbol, kind))
-                .Select(symbol => Authored(SymbolFacts.Match(symbol, paths), markup))
-                .OrderBy(match => Distance(match.Name, query))
-                .ThenBy(match => match.Name, StringComparer.Ordinal)
-                .Take(cap)
-        ];
+        var matching = all.Where(symbol => SymbolFacts.Matches(symbol, kind));
+        var matches = matching.Select(symbol => Authored(SymbolFacts.Match(symbol, paths), markup));
+        var ranked = matches
+            .OrderBy(match => Distance(match.Name, query))
+            .ThenBy(match => match.Name, StringComparer.Ordinal);
+
+        return [.. ranked.Take(cap)];
     }
 
     /// <summary>A component type declares itself through its markup file: point the match there, not into obj/.</summary>
@@ -89,7 +87,7 @@ internal sealed class RoslynSymbols(IPathMap paths, SolutionCache cache) : ISymb
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var symbol = await resolver.ResolveAsync(solution, query, cancellationToken);
+        var symbol = await _resolver.ResolveAsync(solution, query, cancellationToken);
 
         return symbol is null ? null : SymbolFacts.Details(symbol, paths);
     }
@@ -100,7 +98,7 @@ internal sealed class RoslynSymbols(IPathMap paths, SolutionCache cache) : ISymb
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var symbol = await resolver.ResolveAsync(solution, query, cancellationToken);
+        var symbol = await _resolver.ResolveAsync(solution, query, cancellationToken);
         var reference = symbol?.DeclaringSyntaxReferences.FirstOrDefault();
 
         if (symbol is null || reference is null)

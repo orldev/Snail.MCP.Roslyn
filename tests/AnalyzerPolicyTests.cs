@@ -24,18 +24,18 @@ public sealed class AnalyzerPolicyTests : IDisposable
         }
         """;
 
-    private readonly string folder = Directory.CreateTempSubdirectory("roslyn-policy").FullName;
+    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-policy").FullName;
 
     [Fact]
     public async Task RunAsync_StrictPolicy_RunsTheAnalyzersTheSdkShipsWithTheProject()
     {
-        await File.WriteAllTextAsync(Path.Combine(folder, "Probe.csproj"), Project);
-        await File.WriteAllTextAsync(Path.Combine(folder, "Widget.cs"), Source);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Probe.csproj"), Project);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Widget.cs"), Source);
 
         using var strict = new AnalysisFixture(
-            [new KeyValuePair<string, string?>("Workspace:AnalyzerPolicy", "strict")]);
+            [new KeyValuePair<string, string?>("AnalyzerPolicy", "strict")]);
 
-        var report = await strict.Host.LoadAsync(folder, CancellationToken.None);
+        var report = await strict.Host.LoadAsync(_folder, CancellationToken.None);
         var page = await strict.Analyzers.RunAsync(report.Id, null, null, IssueSeverity.Info, 50, CancellationToken.None);
 
         Assert.NotEmpty(page.Analyzers);
@@ -44,5 +44,5 @@ public sealed class AnalyzerPolicyTests : IDisposable
         Assert.DoesNotContain(page.Notes, note => note.Contains("no analyzers of its own", StringComparison.Ordinal));
     }
 
-    public void Dispose() => Directory.Delete(folder, recursive: true);
+    public void Dispose() => Directory.Delete(_folder, recursive: true);
 }

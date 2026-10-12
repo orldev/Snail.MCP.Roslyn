@@ -9,6 +9,11 @@ internal sealed class TextScanner(IPathMap paths)
 {
     private const int Cap = 200;
 
+    /// <summary>The occurrences of a name the compiler did not count as references, outside the files already
+    /// edited.</summary>
+    /// <remarks>The syntax root is only needed to say what kind of occurrence this is. Asking for it before knowing
+    /// there is one parses every file in the solution to answer a question about a handful of them, so a document is
+    /// parsed only when its text contains the name.</remarks>
     public async Task<IReadOnlyList<TextualMatch>> UnhandledAsync(
         Solution solution,
         string name,
@@ -28,8 +33,6 @@ internal sealed class TextScanner(IPathMap paths)
                 var text = await document.GetTextAsync(cancellationToken);
                 var content = text.ToString();
 
-                // The root is only needed to say what kind of occurrence this is. Asking for it before knowing
-                // there is one parses every file in the solution to answer a question about a handful of them.
                 if (!content.Contains(name, StringComparison.Ordinal))
                     continue;
 

@@ -51,7 +51,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
         var page = await fixture.Diagnostics.ReadAsync(
             fixture.SolutionId, null, IssueSeverity.Info, 1, true, CancellationToken.None);
 
-        Assert.Equal(page.Total > page.Items.Count, page.Truncated);
+        Assert.Equal(page.Total > page.Items.Count, page.IsTruncated);
     }
 
     private async Task<int> Errors()

@@ -20,6 +20,8 @@ internal sealed class SymbolResolver(IPathMap paths)
     }
 
     /// <summary>Resolves the symbol, or returns the candidates when a bare name matches more than one.</summary>
+    /// <remarks>A name is looked up by name rather than by predicate: the predicate overload asks every declaration in
+    /// the solution, the name overload asks the index Roslyn already keeps.</remarks>
     public async Task<(ISymbol? Symbol, IReadOnlyList<SymbolMatch> Candidates)> PickAsync(
         Solution solution,
         SymbolQuery query,
@@ -28,8 +30,6 @@ internal sealed class SymbolResolver(IPathMap paths)
         if (!query.HasName)
             return (await ResolveAsync(solution, query, cancellationToken), []);
 
-        // By name rather than by predicate: the predicate overload asks every declaration in the solution, the
-        // name overload asks the index Roslyn already keeps.
         var found = await SymbolFinder.FindSourceDeclarationsAsync(
             solution,
             query.Name!,

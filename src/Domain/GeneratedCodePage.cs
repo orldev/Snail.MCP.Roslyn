@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Snail.MCP.Roslyn.Domain;
 
 public sealed record GeneratedCodePage(
@@ -5,5 +7,5 @@ public sealed record GeneratedCodePage(
     IReadOnlyList<string> Generators,
     IReadOnlyList<GeneratedFile> Files,
     int Total,
-    bool Truncated,
+    [property: JsonPropertyName("truncated")] bool IsTruncated,
     IReadOnlyList<string> Notes);

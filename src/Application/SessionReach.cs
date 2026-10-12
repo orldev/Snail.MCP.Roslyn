@@ -27,7 +27,7 @@ public sealed class SessionReach(IOptions<WorkspaceOptions> options, ISessionAdd
     {
         var roots = Roots;
 
-        return roots.Count == 0 || roots.Any(root => Under(path, root));
+        return roots.Count == 0 || roots.Any(root => IsUnder(path, root));
     }
 
     /// <summary>The refusal, in the words the caller needs to fix the call.</summary>
@@ -72,7 +72,7 @@ public sealed class SessionReach(IOptions<WorkspaceOptions> options, ISessionAdd
     /// and a bare prefix test would let a sibling whose name merely begins the same way — <c>/w/task-1-x</c>
     /// next to <c>/w/task-1</c> — pass as a path inside.
     /// </remarks>
-    private static bool Under(string path, string root)
+    private static bool IsUnder(string path, string root)
     {
         var full = Real(Path.GetFullPath(path));
         var inside = Real(root);

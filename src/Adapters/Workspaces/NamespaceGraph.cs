@@ -5,7 +5,7 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 /// <summary>Which namespace depends on which, so a cycle can be named rather than felt.</summary>
 internal sealed class NamespaceGraph
 {
-    private readonly Dictionary<string, HashSet<string>> edges = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, HashSet<string>> _edges = new(StringComparer.Ordinal);
 
     /// <summary>The edge a name used inside a type draws, or null when it draws none: a namespace does not depend
     /// on itself, on a namespace nesting it or nested in it, or on a type outside the source.</summary>
@@ -21,7 +21,7 @@ internal sealed class NamespaceGraph
 
         var to = space.ToDisplayString();
 
-        if (string.Equals(from, to, StringComparison.Ordinal) || Nested(from, to) || Nested(to, from))
+        if (string.Equals(from, to, StringComparison.Ordinal) || IsNested(from, to) || IsNested(to, from))
             return null;
 
         return new NamespaceEdge(from, to);
@@ -31,8 +31,8 @@ internal sealed class NamespaceGraph
     {
         foreach (var (from, to) in facts.Edges)
         {
-            if (!edges.TryGetValue(from, out var set))
-                set = edges[from] = new HashSet<string>(StringComparer.Ordinal);
+            if (!_edges.TryGetValue(from, out var set))
+                set = _edges[from] = new HashSet<string>(StringComparer.Ordinal);
 
             set.Add(to);
         }
@@ -58,7 +58,7 @@ internal sealed class NamespaceGraph
             stack.Push(node);
             onStack.Add(node);
 
-            foreach (var target in edges.TryGetValue(node, out var found) ? found : [])
+            foreach (var target in _edges.TryGetValue(node, out var found) ? found : [])
             {
                 if (!index.ContainsKey(target))
                 {
@@ -89,7 +89,7 @@ internal sealed class NamespaceGraph
                 cycles.Add(string.Join(" -> ", component.Order(StringComparer.Ordinal)));
         }
 
-        foreach (var start in edges.Keys.Order(StringComparer.Ordinal))
+        foreach (var start in _edges.Keys.Order(StringComparer.Ordinal))
         {
             if (!index.ContainsKey(start))
                 Connect(start);
@@ -98,6 +98,6 @@ internal sealed class NamespaceGraph
         return [.. cycles.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)];
     }
 
-    private static bool Nested(string outer, string inner) =>
+    private static bool IsNested(string outer, string inner) =>
         inner.StartsWith($"{outer}.", StringComparison.Ordinal);
 }

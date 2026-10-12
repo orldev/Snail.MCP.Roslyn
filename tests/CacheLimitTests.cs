@@ -11,20 +11,20 @@ public sealed class CacheLimitTests : IDisposable
         </Project>
         """;
 
-    private readonly string first = Directory.CreateTempSubdirectory("roslyn-cache-first").FullName;
+    private readonly string _first = Directory.CreateTempSubdirectory("roslyn-cache-first").FullName;
 
-    private readonly string second = Directory.CreateTempSubdirectory("roslyn-cache-second").FullName;
+    private readonly string _second = Directory.CreateTempSubdirectory("roslyn-cache-second").FullName;
 
     [Fact]
     public async Task FreshAsync_SolutionDroppedForTheCeiling_SaysSoInsteadOfClaimingItWasNeverLoaded()
     {
-        await WriteAsync(first, "First");
-        await WriteAsync(second, "Second");
+        await WriteAsync(_first, "First");
+        await WriteAsync(_second, "Second");
 
-        using var fixture = new AnalysisFixture([new KeyValuePair<string, string?>("Workspace:MaxSolutions", "1")]);
+        using var fixture = new AnalysisFixture([new KeyValuePair<string, string?>("MaxSolutions", "1")]);
 
-        var dropped = (await fixture.Host.LoadAsync(first, CancellationToken.None)).Id;
-        var kept = (await fixture.Host.LoadAsync(second, CancellationToken.None)).Id;
+        var dropped = (await fixture.Host.LoadAsync(_first, CancellationToken.None)).Id;
+        var kept = (await fixture.Host.LoadAsync(_second, CancellationToken.None)).Id;
 
         var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             fixture.Diagnostics.ReadAsync(dropped, null, IssueSeverity.Error, 10, false, CancellationToken.None));
@@ -38,8 +38,8 @@ public sealed class CacheLimitTests : IDisposable
 
     public void Dispose()
     {
-        Directory.Delete(first, recursive: true);
-        Directory.Delete(second, recursive: true);
+        Directory.Delete(_first, recursive: true);
+        Directory.Delete(_second, recursive: true);
     }
 
     private static async Task WriteAsync(string folder, string name)

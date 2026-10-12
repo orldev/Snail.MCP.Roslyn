@@ -29,9 +29,9 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         "Directives the compiler reports as unnecessary were removed and the rest sorted, System first. "
         + "A directive needed only by a source generator's output can appear unnecessary here.";
 
-    private readonly SymbolResolver resolver = new(paths);
-    private readonly SolutionEdits editor = new(paths);
-    private readonly TextScanner scanner = new(paths);
+    private readonly SymbolResolver _resolver = new(paths);
+    private readonly SolutionEdits _editor = new(paths);
+    private readonly TextScanner _scanner = new(paths);
 
     public async Task<EditPlan> RenameNamespaceAsync(
         string solutionId,
@@ -46,7 +46,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
 
         if (oldParts.Length != newParts.Length)
         {
-            var textual = await scanner.UnhandledAsync(solution, oldParts[^1], [], cancellationToken);
+            var textual = await _scanner.UnhandledAsync(solution, oldParts[^1], [], cancellationToken);
 
             return new EditPlan("rename_namespace", oldNamespace, [], [], textual, [], [], [DepthNote]);
         }
@@ -66,12 +66,12 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             current = await Renamer.RenameSymbolAsync(current, space, new SymbolRenameOptions(), newParts[index], cancellationToken);
         }
 
-        var edits = await editor.BetweenAsync(solution, current, cancellationToken);
+        var edits = await _editor.BetweenAsync(solution, current, cancellationToken);
 
         if (updateFolders)
             edits = Realign(solution, edits, oldNamespace, newNamespace);
 
-        var unhandled = await scanner.UnhandledAsync(solution, oldParts[^1], SolutionEdits.Touched(edits), cancellationToken);
+        var unhandled = await _scanner.UnhandledAsync(solution, oldParts[^1], SolutionEdits.Touched(edits), cancellationToken);
 
         return new EditPlan(
             "rename_namespace",
@@ -84,6 +84,9 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             Notes(unhandled.Count > 0, updateFolders));
     }
 
+    /// <summary>Plans moving a type into a file of its own, or into another file or namespace.</summary>
+    /// <remarks>A file that holds nothing but the type makes the move a rename; only a changed namespace edits the
+    /// file.</remarks>
     public async Task<EditPlan> MoveTypeAsync(
         string solutionId,
         SymbolQuery query,
@@ -92,7 +95,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var (symbol, candidates) = await resolver.PickAsync(solution, query, cancellationToken);
+        var (symbol, candidates) = await _resolver.PickAsync(solution, query, cancellationToken);
 
         if (symbol is not INamedTypeSymbol type)
             return Empty("move_type", query, candidates);
@@ -128,7 +131,6 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
 
         if (alone)
         {
-            // The file holds nothing but this type, so moving it is a rename; only a changed namespace edits it.
             if (Renamespaced(text, root, space) is { } line)
             {
                 after = solution.WithDocumentText(documentId, line.Rewritten);
@@ -252,7 +254,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var (symbol, candidates) = await resolver.PickAsync(solution, query, cancellationToken);
+        var (symbol, candidates) = await _resolver.PickAsync(solution, query, cancellationToken);
 
         if (symbol is not IMethodSymbol method)
             return Empty("change_signature", query, candidates);
@@ -338,7 +340,9 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
     /// <summary>The using block rewritten, stated as the lines it occupies and nothing below them.</summary>
     /// <remarks>Rewriting the block through the syntax tree and normalising whitespace reformats the whole
     /// file — brace style, blank lines, alignment — so organising three directives arrives as a diff over
-    /// every line. Each directive is written back with its own trivia, so a comment above one travels with it.</remarks>
+    /// every line. Each directive is written back with its own trivia, so a comment above one travels with it.
+    /// <para>The block ends at the last semicolon, not past its newline: the blank line under the block belongs to the
+    /// file.</para></remarks>
     private (BlockReplacement Replacement, SourceText Rewritten) Rewritten(
         SourceText text,
         string file,
@@ -356,7 +360,6 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             rebuilt.Append(directive.WithLeadingTrivia(leading).ToFullString());
         }
 
-        // Ends at the last semicolon, not past its newline: the blank line under the block belongs to the file.
         var block = TextSpan.FromBounds(first.FullSpan.Start, root.Usings[^1].Span.End);
         var written = rebuilt.ToString().TrimEnd('\r', '\n');
 
@@ -452,7 +455,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
 
             var prefix = string.IsNullOrWhiteSpace(project.DefaultNamespace) ? project.Name : project.DefaultNamespace;
 
-            if (!Namespaced(oldNamespace, prefix) || !Namespaced(newNamespace, prefix))
+            if (!IsWithinNamespace(oldNamespace, prefix) || !IsWithinNamespace(newNamespace, prefix))
                 continue;
 
             var from = Path.Combine([root, .. Segments(oldNamespace, prefix)]);
@@ -482,7 +485,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
 
     /// <summary>True when the namespace is the prefix or sits under it. 'Snail.Domain' must not swallow
     /// 'Snail.DomainModel', which a bare prefix test would.</summary>
-    private static bool Namespaced(string space, string prefix) =>
+    private static bool IsWithinNamespace(string space, string prefix) =>
         space.Equals(prefix, StringComparison.Ordinal) || space.StartsWith($"{prefix}.", StringComparison.Ordinal);
 
     private static string[] Segments(string space, string prefix) =>

@@ -1,9 +1,9 @@
+using Microsoft.Extensions.Configuration;
+
 namespace Snail.MCP.Roslyn.Configuration;
 
 public sealed class WorkspaceOptions
 {
-    public const string Section = "Workspace";
-
     /// <summary>Caller root mapped to process root; an empty map means the two coincide.</summary>
     public Dictionary<string, string> Roots { get; init; } = [];
 
@@ -23,7 +23,8 @@ public sealed class WorkspaceOptions
     /// <remarks>On, because nothing else in the arrangement does it: the worker clones the copy and never
     /// builds it, and without restore every semantic answer under-reports. Off for a deployment that restores
     /// by other means and would rather this server never started a process.</remarks>
-    public bool RestoreOnLoad { get; init; } = true;
+    [ConfigurationKeyName("RestoreOnLoad")]
+    public bool ShouldRestoreOnLoad { get; init; } = true;
 
     /// <summary>Seconds one restore may take; past it the load goes on unrestored and says so.</summary>
     /// <remarks>A cold package cache on a large solution is minutes, and a restore that hangs on an
