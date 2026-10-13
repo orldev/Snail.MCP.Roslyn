@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -8,6 +9,7 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Snail.MCP.Roslyn.Adapters.Paths;
 using Snail.MCP.Roslyn.Application;
+using Snail.MCP.Roslyn.Configuration;
 using Snail.MCP.Roslyn.Extensions;
 
 namespace Snail.MCP.Roslyn.Tests;
@@ -15,6 +17,9 @@ namespace Snail.MCP.Roslyn.Tests;
 /// <summary>The server at an address: where it learns the session's root from, and whom it turns away at the door.</summary>
 public sealed class AddressTests
 {
+    /// <summary>The server as a deployment that says nothing starts it, whatever settings file this machine keeps.</summary>
+    private static readonly Microsoft.Extensions.Configuration.IConfiguration NothingConfigured = WorkspaceSettings.Read(null, new Hashtable());
+
     [Fact]
     public void The_address_hands_over_every_root_it_names()
     {
@@ -51,7 +56,7 @@ public sealed class AddressTests
     {
         var elsewhere = Path.Combine(Path.GetTempPath(), $"snail-mcp-roslyn-{Guid.NewGuid():n}");
 
-        await using var server = McpServerHost.Listening([], port: 0);
+        await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
         await server.StartAsync();
 
         using var client = new HttpClient();
@@ -70,7 +75,7 @@ public sealed class AddressTests
 
         try
         {
-            await using var server = McpServerHost.Listening([], port: 0);
+            await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
             await server.StartAsync();
 
             var refusal = await Load(server, mine, Path.Combine(theirs, "Other.sln"));
@@ -105,7 +110,7 @@ public sealed class AddressTests
     [Fact]
     public async Task A_session_that_names_no_root_at_a_server_configured_with_none_is_turned_away()
     {
-        await using var server = McpServerHost.Listening([], port: 0);
+        await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
         await server.StartAsync();
 
         using var client = new HttpClient();
@@ -126,7 +131,7 @@ public sealed class AddressTests
     {
         var copy = Directory.CreateTempSubdirectory("snail-grant").FullName;
 
-        await using var server = McpServerHost.Listening([], port: 0);
+        await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
         await server.StartAsync();
 
         var address = $"{Address(server)}{McpServerHost.Path}?root={Uri.EscapeDataString(copy)}&tool=health_check";

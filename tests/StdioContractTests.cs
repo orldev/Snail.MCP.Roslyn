@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Snail.Sdk.Mcp.Hosting;
 using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Roslyn.Tests;
@@ -380,6 +381,8 @@ public sealed class StdioContractTests
             RedirectStandardOutput = true,
             RedirectStandardError = true
         };
+
+        start.Environment[ServerSettings.FileVariableOf("roslyn")] = ServerProgram.NoSettingsFile;
 
         foreach (var (name, value) in environment)
             start.Environment[name] = value;

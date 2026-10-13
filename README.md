@@ -81,9 +81,15 @@ The .NET SDK must be installed: the server loads MSBuild from it through `MSBuil
 
 ## Configuration
 
-Every setting is an environment variable under `SNAIL_MCP_ROSLYN_`, and nothing else is read — no `appsettings.json`,
-no command line: a file lying in the working directory of whoever started the server is not a setting of it.
-`.mcp/server.json` lists them all with their defaults.
+The settings come from the settings file and from the environment variables under `SNAIL_MCP_ROSLYN_`, and a
+variable wins over the file. Nothing else is read — no `appsettings.json`, no command line: any other file lying in the
+working directory of whoever started the server is not a setting of it. A file named in `$SNAIL_MCP_ROSLYN_CONFIG` is
+the only settings file read, and when it is missing no file is; otherwise the settings file is the first of these that
+exists: `./.s3l-mcp-roslyn.json`, `./s3l-mcp-roslyn.json`, `~/.config/s3l-mcp-roslyn/config.json`,
+`~/.s3l-mcp-roslyn.json`. A machine's settings belong in `~/.config/s3l-mcp-roslyn/config.json` (`chmod 600`), never in
+a launchd job or in a client's registration, which travel wherever they are copied. Its fields are the variables' names
+after the prefix, a double underscore nesting — `{ "MaxSolutions": 2, "SessionRoots": ["/workspaces"] }`.
+`.mcp/server.json` lists the variables with their defaults.
 
 ```bash
 SNAIL_MCP_ROSLYN_PORT=8817                  # unset: stdio
