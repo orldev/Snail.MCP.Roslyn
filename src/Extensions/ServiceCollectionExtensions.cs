@@ -6,6 +6,7 @@ using Snail.MCP.Roslyn.Adapters.Workspaces;
 using Snail.MCP.Roslyn.Configuration;
 using Snail.MCP.Roslyn.Tools;
 using Snail.MCP.Roslyn.Tools.Prompts;
+using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Roslyn.Extensions;
 
@@ -72,7 +73,11 @@ public static class ServiceCollectionExtensions
         /// </remarks>
         private IMcpServerBuilder AddMcpTools()
         {
-            return services.AddMcpServer(server => server.ServerInstructions = ServerGuidance.Instructions)
+            return services.AddMcpServer(server =>
+                {
+                    server.ServerInfo = ServerIdentity.Of(typeof(ServiceCollectionExtensions).Assembly);
+                    server.ServerInstructions = ServerGuidance.Instructions;
+                })
                 .RefuseWhatWasNotGranted()
                 .ExplainFailures()
                 .BoundAnswers()

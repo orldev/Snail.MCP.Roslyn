@@ -34,6 +34,15 @@ public sealed class StdioContractTests
         Assert.Empty(ToolGuards.Problems(listed.Select(tool => tool.ProtocolTool)));
     }
 
+    /// <summary>A client knows the server by the command a person types to start it.</summary>
+    [Fact]
+    public async Task Initialize_AsAProgram_NamesTheServerByItsCommand()
+    {
+        await using var client = await ServerProgram.StartAsync("Snail.MCP.Roslyn", "SNAIL_ROSLYN_SERVER");
+
+        Assert.Equal("s3l-mcp-roslyn", client.ServerInfo.Name);
+    }
+
     [Fact]
     public async Task StandardOutput_AfterInitialize_CarriesOnlyJsonRpcMessages()
     {

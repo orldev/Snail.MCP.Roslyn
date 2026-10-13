@@ -7,11 +7,11 @@
 
     <!--
         Migration debt (Toolkit/Snail.Sdk/docs/standard.md): XML docs this server does not have yet — CS1591, 384 public
-        members of src without a summary, and CS1573, 2 parameters without a param tag beside documented ones. Writing
-        nearly four hundred summaries is a change of its own, not part of moving onto the SDK; removed as they are written.
+        members of src without a summary. Writing nearly four hundred summaries is a change of its own, not part of
+        moving onto the SDK; removed as they are written.
     -->
     <PropertyGroup>
-        <NoWarn>$(NoWarn);CS1591;CS1573</NoWarn>
+        <NoWarn>$(NoWarn);CS1591</NoWarn>
     </PropertyGroup>
 
 </Project>
