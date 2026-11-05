@@ -41,6 +41,7 @@ public sealed class StdioContractTests
     {
         await using var client = await ServerProgram.StartAsync("Snail.MCP.Roslyn", "SNAIL_ROSLYN_SERVER");
 
+        Assert.NotNull(client.ServerInfo);
         Assert.Equal("s3l-mcp-roslyn", client.ServerInfo.Name);
     }
 
