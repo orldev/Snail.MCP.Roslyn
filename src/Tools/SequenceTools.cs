@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Snail.MCP.Roslyn.Application;
 using Snail.MCP.Roslyn.Configuration;
 using Snail.MCP.Roslyn.Tools.Prompts;
 
@@ -23,16 +24,18 @@ public sealed record ToolStep(string? Tool, JsonObject? Params);
 /// same schema, and nothing here can ask for something no tool offers.
 /// </para>
 /// <para>
-/// What it does widen is the reach of one grant: a role given <c>run_tools</c> can call every tool of
-/// this server, including the ones it was not given. The server's own boundary — the session's roots —
-/// holds all the same, but a deployment that hands out tools one by one should know that this one is
-/// not one of those.
+/// It does not widen the reach of a grant. A step is invoked on the tool object itself, past the call filter that
+/// checks the grant at the door (<see cref="Extensions.GrantRegistrationExtensions"/>), so the grant is checked again
+/// for every step: a role given <c>run_tools</c> called every tool of this server through it, the withheld ones
+/// included, until it was.
 /// </para>
 /// </remarks>
 [McpServerToolType]
-public sealed class SequenceTools(IEnumerable<McpServerTool> tools, IOptions<WorkspaceOptions> options)
+public sealed class SequenceTools(IEnumerable<McpServerTool> tools, SessionGrant grant, IOptions<WorkspaceOptions> options)
 {
-    [McpServerTool(Name = "run_tools", ReadOnly = false, Destructive = true, OpenWorld = true)]
+    private const string Name = "run_tools";
+
+    [McpServerTool(Name = Name, ReadOnly = false, Destructive = true, OpenWorld = true)]
     [Description(ToolDescriptions.RunTools)]
     public async Task<JsonObject> RunToolsAsync(
         RequestContext<CallToolRequestParams> context,
@@ -60,6 +63,9 @@ public sealed class SequenceTools(IEnumerable<McpServerTool> tools, IOptions<Wor
                     "call find_tool to see what this server has");
             }
 
+            if (Refusal(tool) is { } refusal)
+                return Stopped(results, omitted, $"step {at + 1}: {refusal}", null);
+
             var result = await Invoke(context, tool, steps[at].Params, cancellationToken);
             var text = Text(result);
 
@@ -83,6 +89,18 @@ public sealed class SequenceTools(IEnumerable<McpServerTool> tools, IOptions<Wor
         }
 
         return Record(results, omitted, true, null, null);
+    }
+
+    /// <summary>Why a step may not run, or null when it may: the grant of the session holds here as it does at the door.</summary>
+    /// <remarks>A run inside a run is refused: ten steps of ten steps, at the default limit, is a hundred calls from one.</remarks>
+    private string? Refusal(McpServerTool tool)
+    {
+        var name = tool.ProtocolTool.Name;
+
+        if (string.Equals(name, Name, StringComparison.Ordinal))
+            return "run_tools does not run itself";
+
+        return grant.Allows(name) ? null : grant.Refusal(name);
     }
 
     /// <summary>The tool a step names, or null when this server has no such tool.</summary>

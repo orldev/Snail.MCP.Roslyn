@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Net;
+using System.Net.Sockets;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -56,7 +58,7 @@ public sealed class AddressTests
     {
         var elsewhere = Path.Combine(Path.GetTempPath(), $"snail-mcp-roslyn-{Guid.NewGuid():n}");
 
-        await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
+        await using var server = McpServerHost.Listening([], FreePort(), NothingConfigured);
         await server.StartAsync();
 
         using var client = new HttpClient();
@@ -75,7 +77,7 @@ public sealed class AddressTests
 
         try
         {
-            await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
+            await using var server = McpServerHost.Listening([], FreePort(), NothingConfigured);
             await server.StartAsync();
 
             var refusal = await Load(server, mine, Path.Combine(theirs, "Other.sln"));
@@ -110,7 +112,7 @@ public sealed class AddressTests
     [Fact]
     public async Task A_session_that_names_no_root_at_a_server_configured_with_none_is_turned_away()
     {
-        await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
+        await using var server = McpServerHost.Listening([], FreePort(), NothingConfigured);
         await server.StartAsync();
 
         using var client = new HttpClient();
@@ -131,7 +133,7 @@ public sealed class AddressTests
     {
         var copy = Directory.CreateTempSubdirectory("snail-grant").FullName;
 
-        await using var server = McpServerHost.Listening([], port: 0, NothingConfigured);
+        await using var server = McpServerHost.Listening([], FreePort(), NothingConfigured);
         await server.StartAsync();
 
         var address = $"{Address(server)}{McpServerHost.Path}?root={Uri.EscapeDataString(copy)}&tool=health_check";
@@ -144,6 +146,84 @@ public sealed class AddressTests
         Assert.Contains("was not granted",
             string.Join(string.Empty, refused.Content.OfType<TextContentBlock>().Select(block => block.Text)),
             StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The grant is a call filter, and run_tools invokes each step's tool object itself, past it: a role given run_tools
+    /// reached every tool of the server through it, the withheld ones included. A step is checked against the grant too.
+    /// </summary>
+    [Fact]
+    public async Task RunTools_AStepTheSessionWasNotGranted_IsRefused()
+    {
+        var copy = Directory.CreateTempSubdirectory("snail-grant").FullName;
+
+        await using var server = McpServerHost.Listening([], FreePort(), NothingConfigured);
+        await server.StartAsync();
+
+        var run = await RunAsync(server, copy, ["run_tools", "health_check"], "run_script", new JsonObject { ["code"] = "1 + 1" });
+
+        Assert.False(run["ok"]!.GetValue<bool>());
+        Assert.Equal(0, run["ran"]!.GetValue<int>());
+        Assert.Contains("'run_script' was not granted", run["error"]!.GetValue<string>(), StringComparison.Ordinal);
+    }
+
+    /// <summary>Checking each step against the grant must not stop the steps the session was given.</summary>
+    [Fact]
+    public async Task RunTools_AStepTheSessionWasGranted_Runs()
+    {
+        var copy = Directory.CreateTempSubdirectory("snail-grant").FullName;
+
+        await using var server = McpServerHost.Listening([], FreePort(), NothingConfigured);
+        await server.StartAsync();
+
+        var run = await RunAsync(server, copy, ["run_tools", "find_tool"], "find_tool", new JsonObject { ["task"] = "does it compile" });
+
+        Assert.True(run["ok"]!.GetValue<bool>());
+        Assert.Equal(1, run["ran"]!.GetValue<int>());
+    }
+
+    private static async Task<JsonNode> RunAsync(WebApplication server, string root, string[] granted, string tool, JsonObject parameters)
+    {
+        var grant = string.Concat(granted.Select(name => $"&tool={name}"));
+        var address = $"{Address(server)}{McpServerHost.Path}?root={Uri.EscapeDataString(root)}{grant}";
+
+        await using var client = await McpClient.CreateAsync(new HttpClientTransport(new HttpClientTransportOptions { Endpoint = new Uri(address) }));
+
+        var answer = await client.CallToolAsync("run_tools", new Dictionary<string, object?>
+        {
+            ["steps"] = new JsonArray(new JsonObject { ["tool"] = tool, ["params"] = parameters })
+        });
+
+        return JsonNode.Parse(string.Concat(answer.Content.OfType<TextContentBlock>().Select(block => block.Text)))!;
+    }
+
+    /// <summary>
+    /// A page in a browser always sends Origin and an agent's client never does. The server runs scripts and keys nothing,
+    /// so a page open on the machine must not reach it — and is refused before the door looks at the root, which would
+    /// otherwise tell it what this machine has.
+    /// </summary>
+    [Fact]
+    public async Task Request_FromABrowser_IsRefused()
+    {
+        await using var server = McpServerHost.Listening([], FreePort(), NothingConfigured);
+        await server.StartAsync();
+
+        using var client = new HttpClient();
+        using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{Address(server)}{McpServerHost.Path}"));
+        request.Headers.Add("Origin", "https://example.com");
+
+        using var answer = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Forbidden, answer.StatusCode);
+    }
+
+    /// <summary>A port nothing listens on; the server's host takes a real port, since a port of zero is no published port.</summary>
+    private static int FreePort()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
     }
 
     /// <summary>The server listens on every interface; "::" cannot be called, so the port is taken with loopback.</summary>

@@ -5,16 +5,18 @@ using Snail.MCP.Roslyn.Application;
 
 namespace Snail.MCP.Roslyn.Extensions;
 
-/// <summary>The grant of a session, checked where calls arrive rather than inside each tool.</summary>
+/// <summary>The grant of a session, checked where calls arrive and again by the one tool that forwards them.</summary>
 public static class GrantRegistrationExtensions
 {
     extension(IMcpServerBuilder builder)
     {
-        /// <summary>Refuses a tool the session was not granted, whoever forwarded the call.</summary>
+        /// <summary>Refuses a tool the session was not granted, whoever sent the call.</summary>
         /// <remarks>
-        /// At the door, and not in <c>run_tools</c> and <c>run_script</c> one by one: a defence that
-        /// lives in the tools that forward calls holds only until somebody adds a third one. Here every
-        /// call passes the same check — the model's own, and the one a program sent a moment later.
+        /// At the door, so that every call the protocol carries passes the same check, whichever tool it
+        /// names and whoever sent it. The door sees only what arrives through the protocol: a tool that
+        /// invokes another tool's object itself is past it, so <c>run_tools</c> checks the grant again for
+        /// every step (<see cref="Tools.SequenceTools"/>), and a tool added later that forwards calls must do
+        /// the same.
         /// </remarks>
         public IMcpServerBuilder RefuseWhatWasNotGranted()
         {
