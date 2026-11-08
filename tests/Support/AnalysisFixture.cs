@@ -1,8 +1,8 @@
 using Microsoft.Build.Locator;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Snail.MCP.Roslyn.Adapters.Paths;
 using Snail.MCP.Roslyn.Extensions;
+using Snail.Sdk.Mcp.Hosting.Sessions;
 
 namespace Snail.MCP.Roslyn.Tests.Support;
 
@@ -27,7 +27,8 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
         services.AddLogging();
         services.AddCodeAnalysis(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
 
-        services.AddSingleton(address ?? new StdioAddress());
+        services.AddSingleton(address ?? SessionAddress.None);
+        services.AddMcpServer().WithSessionRoots(ServiceCollectionExtensions.Volumes);
 
         _provider = services.BuildServiceProvider();
     }

@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Options;
-using Snail.MCP.Roslyn.Application;
-using Snail.MCP.Roslyn.Configuration;
+using Snail.MCP.Roslyn.Adapters.Workspaces;
+using Snail.Sdk.Mcp.Hosting.Sessions;
+using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Roslyn.Tests;
 
@@ -8,37 +8,43 @@ namespace Snail.MCP.Roslyn.Tests;
 /// How far the session in front of the server reaches. One process per caller never had this question:
 /// whatever it was asked to load was its own. A container shared by a machine is another
 /// animal: each worker has its own working copy, and the whole point is that nobody reaches another's.
+/// The roots are Snail.Sdk's; these pin how this server composes them.
 /// </summary>
 public sealed class SessionReachTests
 {
     [Fact]
     public void A_session_that_named_a_root_reaches_inside_it_and_nowhere_else()
     {
-        var reach = Opened(at: "/workspaces/task-1");
+        var roots = Opened(at: "/workspaces/task-1");
 
-        Assert.True(reach.Allows("/workspaces/task-1/src/App.csproj"));
-        Assert.False(reach.Allows("/workspaces/task-2/src/App.csproj"));
+        Assert.True(roots.Opens("/workspaces/task-1/src/App.csproj").IsAllowed);
+        Assert.False(roots.Opens("/workspaces/task-2/src/App.csproj").IsAllowed);
     }
 
     /// <summary>A sibling whose name merely begins the same way is the classic way out of the cage.</summary>
     [Fact]
     public void A_sibling_whose_name_merely_begins_the_same_way_is_not_inside() =>
-        Assert.False(Opened(at: "/workspaces/task-1").Allows("/workspaces/task-1-secrets/App.csproj"));
+        Assert.False(Opened(at: "/workspaces/task-1").Opens("/workspaces/task-1-secrets/App.csproj").IsAllowed);
 
-    /// <summary>A server started for one caller names no root — and that is not a hole but how it is built.</summary>
+    /// <summary>A server started for one caller names no root and is configured with none — and that is not a hole but how it is built.</summary>
     [Fact]
-    public void A_session_that_named_nothing_reaches_wherever_the_process_can() =>
-        Assert.True(Opened(at: null).Allows("/anywhere/at/all.csproj"));
+    public void A_session_that_named_nothing_at_a_server_configured_with_nothing_reaches_wherever_the_process_can() =>
+        Assert.True(Opened(at: null).Opens("/anywhere/at/all.csproj").IsAllowed);
 
     /// <summary>A configured root stands where there is no address: that is how a server run as a program is confined.</summary>
     [Fact]
     public void A_configured_root_stands_when_the_address_names_none()
     {
-        var reach = Opened(at: null, configured: "/workspaces");
+        var roots = Opened(at: null, configured: "/workspaces");
 
-        Assert.True(reach.Allows("/workspaces/task-1/App.csproj"));
-        Assert.False(reach.Allows("/etc/passwd"));
+        Assert.True(roots.Opens("/workspaces/task-1/App.csproj").IsAllowed);
+        Assert.False(roots.Opens("/etc/passwd").IsAllowed);
     }
+
+    /// <summary>A root named outside the configured ones is no working copy, whoever wrote the address: it reaches nothing.</summary>
+    [Fact]
+    public void A_root_named_outside_the_configured_ones_reaches_nothing() =>
+        Assert.False(Opened(at: "/etc", configured: "/workspaces").Opens("/etc/passwd").IsAllowed);
 
     /// <summary>A symlink inside the root is the cheapest way out of it, so links are resolved.</summary>
     [Fact]
@@ -52,7 +58,7 @@ public sealed class SessionReachTests
             var door = Path.Combine(one, "out");
             Directory.CreateSymbolicLink(door, two);
 
-            Assert.False(Opened(at: one).Allows(Path.Combine(door, "App.csproj")));
+            Assert.False(Opened(at: one).Opens(Path.Combine(door, "App.csproj")).IsAllowed);
         }
         finally
         {
@@ -76,7 +82,7 @@ public sealed class SessionReachTests
             File.WriteAllText(Path.Combine(two, "Other.sln"), string.Empty);
             Directory.CreateSymbolicLink(Path.Combine(one, "out"), two);
 
-            Assert.False(Opened(at: one).Allows(Path.Combine(one, "out", "Other.sln")));
+            Assert.False(Opened(at: one).Opens(Path.Combine(one, "out", "Other.sln")).IsAllowed);
         }
         finally
         {
@@ -88,15 +94,8 @@ public sealed class SessionReachTests
     /// <summary>The refusal names the root: otherwise a person reads "not allowed" and does not know where is.</summary>
     [Fact]
     public void The_refusal_names_where_the_session_does_work() =>
-        Assert.Contains("/workspaces/task-1", Opened(at: "/workspaces/task-1").Refusal("/elsewhere"), StringComparison.Ordinal);
+        Assert.Contains("/workspaces/task-1", Opened(at: "/workspaces/task-1").Opens("/elsewhere").Told, StringComparison.Ordinal);
 
-    private static SessionReach Opened(string? at, string? configured = null) =>
-        new(Options.Create(new WorkspaceOptions { SessionRoots = configured is null ? [] : [configured] }),
-            new Address(at));
-
-    private sealed class Address(string? root) : ISessionAddress
-    {
-        public IReadOnlyList<string> Values(string parameter) =>
-            parameter == SessionReach.Parameter && root is not null ? [root] : [];
-    }
+    private static SessionRoots Opened(string? at, string? configured = null) =>
+        new(at is null ? new FixedAddress() : new FixedAddress((SessionRoots.Parameter, at)), configured is null ? [] : [configured]);
 }

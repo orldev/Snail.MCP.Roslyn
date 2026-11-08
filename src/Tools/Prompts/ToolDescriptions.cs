@@ -178,19 +178,4 @@ public static class ToolDescriptions
     public const string UnloadSolution =
         "Release a loaded solution and the memory its compilations hold. "
         + "Use it when you are done with one solution and about to work on another; loading again is cheap.";
-
-    public const string FindTool =
-        "Names the tools that answer a task described in words, with the parameters each takes. "
-        + "Ask here instead of carrying all thirty in the window.";
-
-    public const string FindToolTask = "What you are trying to do, in words: 'where is this used', 'does it compile'.";
-
-    public const string FindToolLimit = "How many tools to name; five by default.";
-
-    public const string RunTools =
-        "Runs several of this server's tools in one call, in order, stopping at the first failure. "
-        + "For steps that do not depend on reading the previous answer. Each step is an ordinary tool call.";
-
-    public const string RunToolsSteps =
-        "Steps in order: {\"tool\": \"get_diagnostics\", \"params\": {…}}. Call find_tool for what a tool takes.";
 }

@@ -89,11 +89,11 @@ public sealed class ToolContractTests
         string[] declared =
         [
             "analyze_change_impact", "change_signature", "check_architecture", "extract_component", "find_callers", "find_implementations",
-            "find_references", "find_tests_for_symbol", "find_tool", "find_uncovered_symbols", "find_unused_symbols",
+            "find_references", "find_tests_for_symbol", "find_uncovered_symbols", "find_unused_symbols",
             "get_code_fixes", "get_di_registrations", "get_diagnostics", "get_generated_code", "get_solution_overview",
             "get_symbol_info", "get_symbol_source", "get_type_hierarchy", "health_check", "load_solution",
             "move_type", "organize_usings", "read_file", "rename_namespace", "rename_symbol", "run_analyzers", "run_script",
-            "run_tools", "search_symbols", "unload_solution", "validate"
+            "search_symbols", "unload_solution", "validate"
         ];
 
         string[] actual =
@@ -117,21 +117,22 @@ public sealed class ToolContractTests
                 StringComparison.Ordinal));
     }
 
-    /// <summary>The mechanics shared by the whole fleet are named alike in all three servers.</summary>
+    /// <summary>The mechanics shared by the whole fleet are Snail.Sdk's, spelled alike in every server.</summary>
     /// <remarks>
     /// find_tool, run_tools and run_program are not about the solution but about how ANY server is asked
     /// what it can do, and how several of its tools are spent in one call. The platform calls them as
-    /// "server.name", and a mismatch would mean the same question is asked of three servers in three ways.
-    /// Checked here because a tool's name is part of the contract with the outside, not a detail.
+    /// "server.name", and Snail.Sdk registers them (<c>WithToolDiscovery</c>, <c>WithToolSequences</c>) so that
+    /// the same question is asked of every server in one way: a copy of one declared here, or a tool named after
+    /// one, would be a second way. That the server lists them is checked on the wire (<see cref="DiscoveryTests"/>).
     /// </remarks>
     [Fact]
-    public void The_machinery_of_the_fleet_is_spelled_the_same_way_everywhere()
+    public void The_machinery_of_the_fleet_is_the_sdk_s_and_no_tool_of_this_server_copies_it()
     {
         string[] machinery = ["find_tool", "run_program", "run_tools"];
 
         var names = Tools.Select(tool => tool.GetCustomAttribute<McpServerToolAttribute>()!.Name!).ToList();
 
-        Assert.NotEmpty(names.Intersect(machinery));
+        Assert.Empty(names.Intersect(machinery));
         Assert.DoesNotContain(names, name => machinery.Any(known => name.EndsWith("_" + known, StringComparison.Ordinal)));
     }
 }

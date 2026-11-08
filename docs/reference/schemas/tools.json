@@ -1364,32 +1364,34 @@
   },
   {
     "name": "run_tools",
-    "description": "Runs several of this server\u0027s tools in one call, in order, stopping at the first failure. For steps that do not depend on reading the previous answer. Each step is an ordinary tool call.",
+    "description": "Runs several of this server\u0027s tools in one call, in order, stopping at the first that fails. For steps that do not depend on reading the previous answer. Each step is an ordinary call of that tool under the same grant; a tool that runs other tools is not a step. An answer too long for the call is left out and its step flagged isOmitted: call that tool alone to read it.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "steps": {
-          "description": "Steps in order: {\u0022tool\u0022: \u0022get_diagnostics\u0022, \u0022params\u0022: {\u2026}}. Call find_tool for what a tool takes.",
+          "description": "The steps in order: {\u0022tool\u0022: \u0022read_file\u0022, \u0022arguments\u0022: {\u0022path\u0022: \u0022src/App.cs\u0022}}. find_tool says what a tool takes.",
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "tool": {
+                "description": "The tool\u0027s name, as the tool list or find_tool gives it.",
                 "type": [
                   "string",
                   "null"
                 ]
               },
-              "params": {
+              "arguments": {
+                "description": "The tool\u0027s arguments, as a direct call of the tool would send them.",
                 "type": [
                   "object",
                   "null"
-                ]
+                ],
+                "default": null
               }
             },
             "required": [
-              "tool",
-              "params"
+              "tool"
             ]
           }
         }
@@ -1407,25 +1409,36 @@
   },
   {
     "name": "find_tool",
-    "description": "Names the tools that answer a task described in words, with the parameters each takes. Ask here instead of carrying all thirty in the window.",
+    "description": "Finds this server\u0027s tools for a task described in words, with what each takes, enough to call it at once. Answers the best matches first; when nothing matches, every tool, with isMatched false. Ask it before concluding that the server has no tool for something.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "task": {
-          "description": "What you are trying to do, in words: \u0027where is this used\u0027, \u0027does it compile\u0027.",
-          "type": "string"
+          "description": "What you are trying to do, in words: \u0027change one line\u0027, \u0027push the branch\u0027.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         },
         "limit": {
-          "description": "How many tools to name; five by default.",
+          "description": "How many tools to name, 1 to 20; five by default.",
           "type": "integer",
           "default": 5
+        },
+        "intent": {
+          "description": "The same as task, for a caller that names it intent; task wins when both are sent.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null
         }
-      },
-      "required": [
-        "task"
-      ]
+      }
     },
     "annotations": {
+      "destructiveHint": false,
+      "idempotentHint": true,
       "openWorldHint": false,
       "readOnlyHint": true
     },

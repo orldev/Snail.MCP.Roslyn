@@ -107,16 +107,20 @@ SNAIL_MCP_ROSLYN_MAX_SOLUTIONS=4
 SNAIL_MCP_ROSLYN_MAX_RUN_STEPS=10
 ```
 
-`PORT` decides the shape of the process. Unset, the server speaks stdio to whatever started it, belongs
-to that one caller and reaches wherever it does — the shape a desktop client installs. Set, it listens on
-every interface and serves sessions at `/mcp`, each naming the copy it works in:
-`http://mcp-roslyn:8817/mcp?root=/workspaces/task-7`. One server then stands behind every agent on the
-machine, and its warm compilations are shared between steps instead of rebuilt for each.
+`PORT` decides the shape of the process (or `TRANSPORT=Http` with `URL`, default `http://127.0.0.1:8817/`). Unset,
+the server speaks stdio to whatever started it, belongs to that one caller and reaches wherever it does — or only
+`SESSION_ROOTS`, when they are set — the shape a desktop client installs. Set, it serves sessions at `/mcp`, each
+naming the copy it works in: `http://mcp-roslyn:8817/mcp?root=/workspaces/task-7`, and answers `GET /healthz`. Inside
+a container it listens on every interface; anywhere else on loopback, unless `LISTENS_ON_EVERY_INTERFACE=true`. One
+server then stands behind every agent on the machine, and its warm compilations are shared between steps instead of
+rebuilt for each.
 
 A session opened at a root **this machine does not have** is refused on the spot, with the root named —
 `400 this machine has no /workspaces/task-7`. Once servers answer at addresses, the worst thing that can
 happen is an agent on one machine reaching the server of another: it would answer, about a solution that
-is not the task's copy, and a wrong answer shaped like a right one is far worse than an error.
+is not the task's copy, and a wrong answer shaped like a right one is far worse than an error. So is a session
+whose root lies outside `SESSION_ROOTS`, when they are set, and a session naming no root at a server configured
+with none. A request from a browser — any request with `Origin` — is refused 403 before the root is looked at.
 
 `SNAIL_MCP_ROSLYN_ROOTS__<caller root>=<root in this process>` maps the caller's filesystem to this process's, for running
 the server in a container. Empty means the two coincide.

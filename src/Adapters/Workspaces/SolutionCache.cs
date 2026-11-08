@@ -3,13 +3,13 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Options;
-using Snail.MCP.Roslyn.Application;
+using Snail.Sdk.Mcp.Hosting.Sessions;
 using Snail.MCP.Roslyn.Configuration;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
 /// <summary>Holds loaded solutions and brings them level with the files on disk before every answer.</summary>
-internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionReach reach) : IDisposable
+internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionRoots reach) : IDisposable
 {
     /// <summary>macOS and Windows both hand back paths whose case need not match MSBuild's.</summary>
     private static readonly StringComparer PathComparer =
@@ -75,9 +75,8 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
                 : $"Solution '{id}' is not loaded. Call load_solution first.");
         }
 
-        if (!reach.Allows(entry.EntryPath))
-            throw new InvalidOperationException(
-                $"Solution '{id}' was loaded by another session. {reach.Refusal(entry.EntryPath)}");
+        if (reach.Opens(entry.EntryPath) is { IsAllowed: false } refused)
+            throw new InvalidOperationException($"Solution '{id}' was loaded by another session. {refused.Told}");
 
         entry.LastUsed = DateTime.UtcNow;
 

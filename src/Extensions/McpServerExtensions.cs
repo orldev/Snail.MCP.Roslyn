@@ -5,30 +5,31 @@ using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Roslyn.Configuration;
+using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Roslyn.Extensions;
 
 public static class McpServerExtensions
 {
+    /// <summary>The type of the refusal of an answer past the budget.</summary>
+    public const string TooLarge = "tooLarge";
+
     extension(IMcpServerBuilder builder)
     {
         /// <summary>Refuses an answer too large to reach the caller whole, instead of letting it be cut.</summary>
         /// <remarks>Every tool caps how many items it returns, and a count is not a size: run_analyzers at its
         /// limit of 200 already serialises to some 90 000 characters against this repository alone. A client
         /// that cuts an answer to fit leaves JSON that stops mid-structure, and a plan read out of a cut answer
-        /// is a plan applied in part. Refusing names the size and what to lower, which the caller can act on.</remarks>
+        /// is a plan applied in part. Refusing names the size and what to lower, which the caller can act on,
+        /// in the failure envelope every other refusal of the server answers in.
+        /// <para>
+        /// The content is measured, not the structured content beside it: an answer of Snail.Sdk's tools —
+        /// <c>find_tool</c>, <c>run_tools</c> — carries its data in both, and counted twice, the whole catalogue
+        /// <c>find_tool</c> answers when nothing matches came to 70 000 characters and was refused.
+        /// </para></remarks>
         public IMcpServerBuilder BoundAnswers()
         {
             builder.WithRequestFilters(filters => filters.AddCallToolFilter(Bounded));
-
-            return builder;
-        }
-
-        /// <summary>Answers a failed call with its message and logs the failure with its trace.</summary>
-        /// <remarks>The caller is handed the message alone; the trace behind it exists nowhere else.</remarks>
-        public IMcpServerBuilder ExplainFailures()
-        {
-            builder.WithRequestFilters(filters => filters.AddCallToolFilter(Explained));
 
             return builder;
         }
@@ -45,47 +46,14 @@ public static class McpServerExtensions
             var budget = context.Server.Services?.GetService<IOptions<WorkspaceOptions>>()
                 ?.Value.MaxResponseChars ?? new WorkspaceOptions().MaxResponseChars;
 
-            var size = JsonSerializer.Serialize(result, McpJsonUtilities.DefaultOptions).Length;
+            var size = JsonSerializer.Serialize(result.Content, McpJsonUtilities.DefaultOptions).Length;
 
             if (size <= budget)
                 return result;
 
-            return new CallToolResult
-            {
-                IsError = true,
-                Content =
-                [
-                    new TextContentBlock
-                    {
-                        Text = $"{context.Params?.Name}: the answer is {size} characters against a budget of "
-                            + $"{budget}, so it is not returned rather than returned cut in half. Ask for less: "
-                            + "a lower 'limit', a narrower 'scope' or 'file', fewer lines, or one project at a time."
-                    }
-                ]
-            };
-        };
-
-    private static McpRequestHandler<CallToolRequestParams, CallToolResult> Explained(McpRequestHandler<CallToolRequestParams, CallToolResult> next) =>
-        async (context, cancellationToken) =>
-        {
-            try
-            {
-                return await next(context, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception error)
-            {
-                if (context.Server.Services?.GetService<ILoggerFactory>() is { } loggers)
-                    Log.ToolFailed(loggers.CreateLogger("Snail.MCP.Roslyn.Tools"), error, context.Params?.Name);
-
-                return new CallToolResult
-                {
-                    IsError = true,
-                    Content = [new TextContentBlock { Text = $"{context.Params?.Name}: {error.Message}" }]
-                };
-            }
+            return ToolAnswer.Failed(
+                $"{context.Params?.Name}: the answer is {size} characters against a budget of {budget}, so it is not returned rather than returned cut in half",
+                "Ask for less: a lower 'limit', a narrower 'scope' or 'file', fewer lines, or one project at a time.",
+                TooLarge);
         };
 }

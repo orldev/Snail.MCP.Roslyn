@@ -15,13 +15,13 @@
       "environmentVariables": [
         {
           "name": "SNAIL_MCP_ROSLYN_PORT",
-          "description": "Port to answer on over Streamable HTTP at /mcp, on every interface, each session naming its copy as /mcp?root=<path>; unset or 0, the server speaks stdio to the process that started it.",
+          "description": "Port to answer on over Streamable HTTP at /mcp, on loopback (every interface inside a container), each session naming its copy as /mcp?root=<path>; unset or 0, the server speaks stdio to the process that started it.",
           "isRequired": false,
           "default": "0"
         },
         {
           "name": "SNAIL_MCP_ROSLYN_SESSION_ROOTS__0",
-          "description": "A folder this process may reach at all (…__1, …__2 for more); none means wherever it can, which is right for a server started for one caller and wrong for one shared by several.",
+          "description": "A folder this process may reach at all (…__1, …__2 for more), and a session's ?root= must lie inside one; none means wherever it can, which is right for a server started for one caller and wrong for one shared by several.",
           "isRequired": false
         },
         {
@@ -104,13 +104,13 @@
       "environmentVariables": [
         {
           "name": "SNAIL_MCP_ROSLYN_PORT",
-          "description": "Port to answer on over Streamable HTTP at /mcp, on every interface, each session naming its copy as /mcp?root=<path>; unset or 0, the server speaks stdio to the process that started it.",
+          "description": "Port to answer on over Streamable HTTP at /mcp, on loopback (every interface inside a container), each session naming its copy as /mcp?root=<path>; unset or 0, the server speaks stdio to the process that started it.",
           "isRequired": false,
           "value": "8817"
         },
         {
           "name": "SNAIL_MCP_ROSLYN_SESSION_ROOTS__0",
-          "description": "A folder this process may reach at all (…__1, …__2 for more); none means wherever it can, which is right for a server started for one caller and wrong for one shared by several.",
+          "description": "A folder this process may reach at all (…__1, …__2 for more), and a session's ?root= must lie inside one; none means wherever it can, which is right for a server started for one caller and wrong for one shared by several.",
           "isRequired": false
         },
         {

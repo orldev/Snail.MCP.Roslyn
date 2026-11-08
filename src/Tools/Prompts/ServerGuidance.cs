@@ -38,5 +38,7 @@ public static class ServerGuidance
         For a question no tool covers: run_script, one pass over the whole solution.
 
         Notes on an answer are part of it. An empty result carrying a note means "unknown", never "none".
+        A failed call is flagged isError and answers JSON with ok false, an error and often a hint: read them and
+        change the call instead of repeating it.
         """;
 }

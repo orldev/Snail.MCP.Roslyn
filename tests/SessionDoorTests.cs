@@ -1,3 +1,5 @@
+using Snail.Sdk.Mcp.Hosting.Sessions;
+
 namespace Snail.MCP.Roslyn.Tests;
 
 /// <summary>
@@ -75,6 +77,6 @@ public sealed class SessionDoorTests : IDisposable
         public string Root { get; set; } = root;
 
         public IReadOnlyList<string> Values(string parameter) =>
-            parameter == Snail.MCP.Roslyn.Application.SessionReach.Parameter ? [Root] : [];
+            parameter == SessionRoots.Parameter ? [Root] : [];
     }
 }

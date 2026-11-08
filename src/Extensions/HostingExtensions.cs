@@ -19,7 +19,7 @@ public static class HostingExtensions
         {
             builder.UseInstalledMsBuild();
             builder.Services.AddCodeAnalysis(settings);
-            builder.Services.AddMcpTransportAtAnAddress();
+            builder.Services.AddMcpTransportAtAnAddress(settings);
 
             return builder;
         }
@@ -29,7 +29,7 @@ public static class HostingExtensions
         {
             builder.UseInstalledMsBuild();
             builder.Services.AddCodeAnalysis(settings);
-            builder.Services.AddMcpTransportAsAProgram();
+            builder.Services.AddMcpTransportAsAProgram(settings);
 
             return builder;
         }

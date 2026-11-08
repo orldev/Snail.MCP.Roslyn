@@ -13,13 +13,17 @@ public sealed class StdioContractTests
     /// charge every caller pays all day, and what they buy is the other way round — a role that carries a
     /// handful of tools and asks for the rest by name, and three questions answered in one round trip
     /// instead of three. The trade is only worth it while those two stay short, which is why their own
-    /// words live in the index and not in their descriptions.
+    /// words live in ToolMeanings and not in their descriptions.
     /// Raised a second time, from 29 500: the annotations measured 1 973 bytes of the catalogue, and what
     /// they buy is the server's place in a conversation at all. A host that only hands out tools which say
     /// they read — the swarm does, by readOnlyHint — had no way to tell this server reads, and left every
     /// tool of it out. A kilobyte is the price of being asked a question instead of being skipped.
+    /// Raised a third time, from 31 000, and not by this server: find_tool and run_tools are Snail.Sdk's now, the same
+    /// in every server of the fleet, and their descriptions are some 700 bytes longer than the ones this server wrote —
+    /// find_tool takes intent beside task, run_tools says what a step is and where it stops. What the caller gets is the
+    /// fleet asking every server the same way; shortening them is the SDK's to do.
     /// </remarks>
-    private const int Ceiling = 31_000;
+    private const int Ceiling = 32_000;
 
     /// <summary>
     /// The guard rules of every Snail server, on the list a model receives: names in snake case and listed once, the tool
@@ -208,6 +212,7 @@ public sealed class StdioContractTests
         var content = answer!.RootElement.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString();
 
         Assert.Contains("not loaded", content ?? string.Empty, StringComparison.Ordinal);
+        Assert.StartsWith("""{"ok":false,"error":"get_diagnostics: """, content, StringComparison.Ordinal);
 
         server.StandardInput.Close();
 
@@ -231,7 +236,7 @@ public sealed class StdioContractTests
         await HandshakeAsync(server);
         await server.StandardInput.WriteLineAsync(
             """
-            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"run_tools","arguments":{"steps":[{"tool":"find_tool","params":{"task":"does it compile"}},{"tool":"find_tool","params":{"task":"rename safely"}}]}}}
+            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"run_tools","arguments":{"steps":[{"tool":"find_tool","arguments":{"task":"does it compile"}},{"tool":"find_tool","arguments":{"task":"rename safely"}}]}}}
             """);
         await server.StandardInput.FlushAsync(CancellationToken.None);
 
@@ -258,7 +263,7 @@ public sealed class StdioContractTests
         await HandshakeAsync(server);
         await server.StandardInput.WriteLineAsync(
             """
-            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"run_tools","arguments":{"steps":[{"tool":"make_coffee","params":{}}]}}}
+            {"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"run_tools","arguments":{"steps":[{"tool":"make_coffee","arguments":{}}]}}}
             """);
         await server.StandardInput.FlushAsync(CancellationToken.None);
 
@@ -269,7 +274,7 @@ public sealed class StdioContractTests
 
         var said = answer!.RootElement.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString()!;
 
-        Assert.Contains("does not name a tool", said, StringComparison.Ordinal);
+        Assert.Contains("has no tool 'make_coffee'", said, StringComparison.Ordinal);
         Assert.Contains("find_tool", said, StringComparison.Ordinal);
     }
 

@@ -4,14 +4,14 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
-using Snail.MCP.Roslyn.Application;
+using Snail.Sdk.Mcp.Hosting.Sessions;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
 internal sealed class RoslynSolutionHost(
     IPathMap paths,
     SolutionCache cache,
-    SessionReach reach,
+    SessionRoots reach,
     PackageRestore restore,
     ILogger<RoslynSolutionHost> log)
     : ISolutionHost
@@ -42,8 +42,8 @@ internal sealed class RoslynSolutionHost(
     {
         var target = paths.ToProcess(path);
 
-        if (!reach.Allows(target))
-            return Unopened(target, reach.Refusal(paths.ToCaller(target)));
+        if (reach.Opens(target) is { IsAllowed: false } refused)
+            return Unopened(target, refused.Told);
 
         var entry = Resolve(target);
 

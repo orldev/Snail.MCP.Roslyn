@@ -10,7 +10,7 @@
     { "type": "AnalysisTools", "slug": "analysis", "title": "Impact, analyzers, fixes and validation" },
     { "type": "ArchitectureTools", "slug": "architecture", "title": "Registrations, unused and untested code" },
     { "type": "ScriptTools", "slug": "script", "title": "Scripts over the whole solution" },
-    { "type": "SequenceTools", "slug": "sequence", "title": "Several tools in one call" },
-    { "type": "DiscoveryTools", "slug": "discovery", "title": "Finding a tool" }
+    { "tools": ["run_tools"], "slug": "sequence", "title": "Several tools in one call" },
+    { "tools": ["find_tool"], "slug": "discovery", "title": "Finding a tool" }
   ]
 }
