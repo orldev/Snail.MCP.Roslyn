@@ -22,10 +22,11 @@ public static class McpServerHost
     public static readonly Uri DefaultUrl = new("http://127.0.0.1:8817/");
 
     /// <summary>Builds whichever of the two shapes the configuration asks for.</summary>
+    /// <exception cref="StartRefusedException">A setting of the endpoint holds what it cannot mean, or reaches beyond loopback outside a container, named by its variable.</exception>
     public static IHost Of(string[] args)
     {
         var settings = WorkspaceSettings.Read();
-        var endpoint = McpEndpoint.Read(settings, DefaultUrl, new McpEndpointOptions { Reach = McpReach.LoopbackOrContainer });
+        var endpoint = McpEndpoint.Read(settings, DefaultUrl, new McpEndpointOptions { Reach = McpReach.LoopbackOrContainer, Server = WorkspaceSettings.Name });
 
         return endpoint.Transport is McpTransport.Http ? Listening(args, endpoint, settings) : Spoken(args, settings);
     }
@@ -52,7 +53,7 @@ public static class McpServerHost
 
         app.MapLocalMcp(Path);
         app.MapHealth();
-        app.RefuseSessionsItCannotServe(ServiceCollectionExtensions.Volumes, Path);
+        app.UseSessionRoots(ServiceCollectionExtensions.Volumes, Path);
 
         return app;
     }

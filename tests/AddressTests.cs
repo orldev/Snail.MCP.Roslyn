@@ -56,11 +56,12 @@ public sealed class AddressTests : IAsyncLifetime
         {
             await using var client = await _server.SessionAsync($"root={Uri.EscapeDataString(_copy)}");
 
-            var answer = await client.CallToolAsync("load_solution", new Dictionary<string, object?> { ["path"] = Path.Combine(theirs, "Other.sln") });
+            var solution = Path.Combine(theirs, "Other.sln");
+
+            var answer = await client.CallToolAsync("load_solution", new Dictionary<string, object?> { ["path"] = solution });
 
             Assert.True(answer.IsError, answer.Text());
-            Assert.Contains("is outside this", answer.Error(), StringComparison.Ordinal);
-            Assert.Contains(_copy, answer.Error(), StringComparison.Ordinal);
+            Assert.Contains($"'{solution}' is outside this request's root {_copy}, which its address names", answer.Error(), StringComparison.Ordinal);
             Assert.Equal("outside", answer.Type());
         }
         finally
@@ -158,6 +159,24 @@ public sealed class AddressTests : IAsyncLifetime
     [Fact]
     public async Task Endpoint_AsServed_RefusesBrowsersOnly() =>
         Assert.Empty(await HttpGuards.ProblemsAsync(_server.Endpoint));
+
+    /// <summary>Every interface outside a container stops the start in one line that names the variable, with exit code 1 and no trace.</summary>
+    [Fact]
+    public async Task Start_OnEveryInterfaceOutsideAContainer_IsRefusedInOneLine()
+    {
+        var environment = new Dictionary<string, string?>
+        {
+            ["SNAIL_MCP_ROSLYN_LISTENS_ON_EVERY_INTERFACE"] = "true",
+            ["DOTNET_RUNNING_IN_CONTAINER"] = null,
+        };
+
+        var refused = await Assert.ThrowsAsync<ServerExitedException>(() => HttpServerProgram.StartAsync(Assembly, Variable, environment));
+
+        Assert.Equal(1, refused.ExitCode);
+        Assert.Single(refused.Stderr.Split('\n'));
+        Assert.Contains("SNAIL_MCP_ROSLYN_LISTENS_ON_EVERY_INTERFACE", refused.Stderr, StringComparison.Ordinal);
+        Assert.DoesNotContain("   at ", refused.Stderr, StringComparison.Ordinal);
+    }
 
     private static Dictionary<string, object?> Steps(params (string Tool, JsonObject Arguments)[] steps) => new()
     {

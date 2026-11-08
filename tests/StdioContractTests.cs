@@ -50,6 +50,23 @@ public sealed class StdioContractTests
         Assert.Equal("s3l-mcp-roslyn", client.ServerInfo.Name);
     }
 
+    /// <summary>The settings are bound while the host is registered, before any host could refuse them: a word where a number belongs crashed
+    /// the program with a trace and exit code 134, and is refused in one line that names the variable, with exit code 1.</summary>
+    [Fact]
+    public async Task Start_WithAWordForANumber_IsRefusedInOneLine_NamingTheVariable()
+    {
+        var environment = new Dictionary<string, string?> { ["SNAIL_MCP_ROSLYN_MAX_RESPONSE_CHARS"] = "abc" };
+
+        var refused = await Assert.ThrowsAsync<ServerExitedException>(() => ServerProgram.StartAsync("Snail.MCP.Roslyn", "SNAIL_ROSLYN_SERVER", environment));
+
+        var line = Assert.Single(refused.Stderr.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        Assert.Equal(1, refused.ExitCode);
+        Assert.Contains("SNAIL_MCP_ROSLYN_MAX_RESPONSE_CHARS", line, StringComparison.Ordinal);
+        Assert.Contains("'abc'", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("   at ", refused.Stderr, StringComparison.Ordinal);
+    }
+
     [Fact]
     public async Task StandardOutput_AfterInitialize_CarriesOnlyJsonRpcMessages()
     {

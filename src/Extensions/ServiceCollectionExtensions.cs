@@ -7,7 +7,6 @@ using Snail.MCP.Roslyn.Configuration;
 using Snail.MCP.Roslyn.Tools;
 using Snail.MCP.Roslyn.Tools.Prompts;
 using Snail.Sdk.Mcp.Hosting;
-using Snail.Sdk.Mcp.Hosting.Answers;
 using Snail.Sdk.Mcp.Hosting.Discovery;
 using Snail.Sdk.Mcp.Hosting.Sessions;
 using Snail.Sdk.Mcp.Http;
@@ -79,10 +78,18 @@ public static class ServiceCollectionExtensions
         /// as a refusal with its hint and type (<see cref="RefusalTypes"/>), and whatever else a tool throws is the
         /// server's own failure, answered with Snail.Sdk's "try once more" and logged with its trace.
         /// <c>run_tools</c> takes as many steps and brings back as much as this server's settings always allowed.
+        /// Those settings are bound while the host is registered, before any host could refuse a value of the wrong type, so
+        /// <see cref="ServerSettings.Bind(string, IConfiguration, Action{IConfiguration})"/> says it as a <see cref="StartRefusedException"/>
+        /// naming the variable, where the binder crashed the process with a trace.
         /// </remarks>
+        /// <exception cref="StartRefusedException">A setting holds a value its property's type cannot hold.</exception>
         private IMcpServerBuilder AddMcpTools(IConfiguration settings)
         {
-            var options = settings.Get<WorkspaceOptions>() ?? new WorkspaceOptions();
+            WorkspaceOptions? bound = null;
+
+            ServerSettings.Bind(WorkspaceSettings.Name, settings, read => bound = read.Get<WorkspaceOptions>());
+
+            var options = bound ?? new WorkspaceOptions();
 
             return services.AddMcpServer(server =>
                 {
@@ -90,7 +97,7 @@ public static class ServiceCollectionExtensions
                     server.ServerInstructions = ServerGuidance.Instructions;
                 })
                 .ExplainFailures()
-                .RefuseWhatWasNotGranted()
+                .WithSessionGrant()
                 .WithSessionRoots(Volumes, Roots)
                 .BoundAnswers()
                 .WithTools<SolutionTools>()
@@ -114,16 +121,19 @@ public static class ServiceCollectionExtensions
         }
     }
 
-    /// <summary>How a session's roots are read here: the setting named to a session that has none, and a program configured with none reaching wherever its process can.</summary>
+    /// <summary>How a session's roots are read here: the setting named to a session that has none, a program configured with none reaching wherever its process can, and a session over HTTP reaching any copy it names.</summary>
     /// <remarks>
     /// A server started as a program for one caller — the shape a desktop client installs, with no settings at all — has
-    /// always opened whatever solution its caller named. Over HTTP a session that names no root at a server configured
-    /// with none is turned away at the door, before a call is made.
+    /// always opened whatever solution its caller named. Over HTTP on loopback, configured with no volume, it serves the
+    /// copy each session names (<c>?root=</c>), wherever it is: Snail.Sdk 0.5.0 turns such a session away unless the
+    /// server says so. A session that names no root at a server configured with none is turned away at the door, before a
+    /// call is made, and a configured volume — the image's <c>/workspaces</c> — confines every session to it.
     /// </remarks>
     public static void Roots(SessionRootsOptions roots)
     {
         roots.RootsSetting = RootsSetting;
         roots.ReachesEverywhereAsAProgram = true;
+        roots.ReachesAnyNamedRoot = true;
     }
 
     /// <summary>The folders this process was configured to serve; empty when it was configured with none.</summary>

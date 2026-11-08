@@ -33,6 +33,31 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
         Assert.NotNull(refused.Hint);
     }
 
+    /// <summary>A file MSBuild cannot read is the caller's to fix, and the refusal keeps MSBuild's failure as its cause for the log.</summary>
+    [Fact]
+    public async Task LoadAsync_SolutionMSBuildCannotOpen_IsRefusedKeepingTheFailure()
+    {
+        var folder = Directory.CreateTempSubdirectory("roslyn-unopened").FullName;
+
+        try
+        {
+            var solution = Path.Combine(folder, "Broken.slnx");
+
+            await File.WriteAllTextAsync(solution, "<Solution><Project Path=");
+
+            var refused = await Assert.ThrowsAsync<ToolRefusalException>(() =>
+                fixture.Host.LoadAsync(solution, CancellationToken.None));
+
+            Assert.Equal(RefusalTypes.Unopened, refused.Type);
+            Assert.NotNull(refused.InnerException);
+            Assert.Contains(refused.InnerException.Message, refused.Error, StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Unload_LoadedSolution_ReleasesItAndRejectsLaterQuestions()
     {

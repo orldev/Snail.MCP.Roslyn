@@ -85,7 +85,8 @@ internal sealed class RoslynSolutionHost(
             throw new ToolRefusalException(
                 $"MSBuild could not open {paths.ToCaller(entry)}: {error.Message}",
                 UnopenedHint,
-                RefusalTypes.Unopened);
+                RefusalTypes.Unopened,
+                error);
         }
 
         var projects = Inventory(solution);
