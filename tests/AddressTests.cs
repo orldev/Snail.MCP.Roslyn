@@ -58,8 +58,10 @@ public sealed class AddressTests : IAsyncLifetime
 
             var answer = await client.CallToolAsync("load_solution", new Dictionary<string, object?> { ["path"] = Path.Combine(theirs, "Other.sln") });
 
-            Assert.Contains("outside this session", answer.Text(), StringComparison.Ordinal);
-            Assert.Contains(_copy, answer.Text(), StringComparison.Ordinal);
+            Assert.True(answer.IsError, answer.Text());
+            Assert.Contains("is outside this", answer.Error(), StringComparison.Ordinal);
+            Assert.Contains(_copy, answer.Error(), StringComparison.Ordinal);
+            Assert.Equal("outside", answer.Type());
         }
         finally
         {

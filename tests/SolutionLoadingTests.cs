@@ -1,3 +1,6 @@
+using Snail.MCP.Roslyn.Adapters.Workspaces;
+using Snail.Sdk.Mcp.Hosting.Answers;
+
 namespace Snail.MCP.Roslyn.Tests;
 
 [Collection(nameof(AnalysisCollection))]
@@ -20,12 +23,14 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task LoadAsync_PathWithoutProject_ReportsFailedWithNotes()
+    public async Task LoadAsync_PathWithoutProject_IsRefusedAsNotFound()
     {
-        var report = await fixture.Host.LoadAsync(Path.GetTempPath(), CancellationToken.None);
+        var refused = await Assert.ThrowsAsync<ToolRefusalException>(() =>
+            fixture.Host.LoadAsync(Path.GetTempPath(), CancellationToken.None));
 
-        Assert.Equal(WorkspaceReadiness.Failed, report.Readiness);
-        Assert.NotEmpty(report.Notes);
+        Assert.Equal(RefusalTypes.NotFound, refused.Type);
+        Assert.Contains("No solution or project found", refused.Error, StringComparison.Ordinal);
+        Assert.NotNull(refused.Hint);
     }
 
     [Fact]
@@ -54,8 +59,11 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
             Assert.False(again.WasUnloaded);
             Assert.Contains(unloaded.Notes, note => note.Contains("Load it again", StringComparison.Ordinal));
 
-            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            var refused = await Assert.ThrowsAsync<ToolRefusalException>(() =>
                 fixture.Diagnostics.ReadAsync(report.Id, null, IssueSeverity.Warning, 5, false, CancellationToken.None));
+
+            Assert.Equal(RefusalTypes.NotLoaded, refused.Type);
+            Assert.Equal("Call load_solution first.", refused.Hint);
         }
         finally
         {

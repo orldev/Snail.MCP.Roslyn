@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Roslyn.Tools.Prompts;
 
@@ -9,7 +10,7 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
 {
     [McpServerTool(Name = "extract_component", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.ExtractComponent)]
-    public Task<ExtractionPlan> ExtractComponent(
+    public Task<CallToolResult> ExtractComponent(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Absolute path of the .razor file to extract from.")]
@@ -32,11 +33,11 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
         extractor.ExtractAsync(
             solutionId,
             new ExtractionRequest(file, startLine, endLine, name, substitutions, code, tag, newFile),
-            cancellationToken);
+            cancellationToken).AnsweredAsync(RoslynJson.Default.ExtractionPlan);
 
     [McpServerTool(Name = "rename_symbol", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.RenameSymbol)]
-    public Task<RenamePlan> RenameSymbol(
+    public Task<CallToolResult> RenameSymbol(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("New name for the symbol.")]
@@ -65,11 +66,11 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
             new SymbolQuery(symbolId, name, file, line, column),
             newName,
             new RenameScope(renameOverloads, renameFile, searchComments, searchStrings),
-            cancellationToken);
+            cancellationToken).AnsweredAsync(RoslynJson.Default.RenamePlan);
 
     [McpServerTool(Name = "rename_namespace", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.RenameNamespace)]
-    public Task<EditPlan> RenameNamespace(
+    public Task<CallToolResult> RenameNamespace(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Namespace as it is written today, fully qualified.")]
@@ -79,11 +80,12 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
         CancellationToken cancellationToken,
         [Description("Also move the files so the folders match the new namespace.")]
         bool updateFolders = true) =>
-        structure.RenameNamespaceAsync(solutionId, oldNamespace, newNamespace, updateFolders, cancellationToken);
+        structure.RenameNamespaceAsync(solutionId, oldNamespace, newNamespace, updateFolders, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.EditPlan);
 
     [McpServerTool(Name = "move_type", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.MoveType)]
-    public Task<EditPlan> MoveType(
+    public Task<CallToolResult> MoveType(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -106,21 +108,22 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
             new SymbolQuery(symbolId, name, file, line, column),
             targetFile,
             targetNamespace,
-            cancellationToken);
+            cancellationToken).AnsweredAsync(RoslynJson.Default.EditPlan);
 
     [McpServerTool(Name = "organize_usings", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.OrganizeUsings)]
-    public Task<EditPlan> OrganizeUsings(
+    public Task<CallToolResult> OrganizeUsings(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
         [Description("Optional absolute file or directory path that narrows the work.")]
         string? scope = null) =>
-        structure.OrganizeUsingsAsync(solutionId, scope, cancellationToken);
+        structure.OrganizeUsingsAsync(solutionId, scope, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.EditPlan);
 
     [McpServerTool(Name = "change_signature", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.ChangeSignature)]
-    public Task<EditPlan> ChangeSignature(
+    public Task<CallToolResult> ChangeSignature(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -142,5 +145,5 @@ public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer s
             solutionId,
             new SymbolQuery(symbolId, name, file, line, column),
             new SignatureChange(parameters, returnType),
-            cancellationToken);
+            cancellationToken).AnsweredAsync(RoslynJson.Default.EditPlan);
 }

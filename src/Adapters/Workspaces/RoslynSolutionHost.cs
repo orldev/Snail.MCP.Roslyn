@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
+using Snail.Sdk.Mcp.Hosting.Answers;
 using Snail.Sdk.Mcp.Hosting.Sessions;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
@@ -16,6 +17,11 @@ internal sealed class RoslynSolutionHost(
     ILogger<RoslynSolutionHost> log)
     : ISolutionHost
 {
+    private const string NotFoundHint = "Name a .sln, .slnx or .csproj file, or the folder that holds one.";
+
+    private const string UnopenedHint =
+        "Its message says why; 'dotnet build' on the same path shows the same failure in full. Nothing was loaded.";
+
     private const string ReusedHint =
         "This solution was already loaded and was reused: its compilations are the ones built earlier, "
         + "brought level with the files on disk. Call unload_solution first if you need it opened from scratch.";
@@ -42,13 +48,14 @@ internal sealed class RoslynSolutionHost(
     {
         var target = paths.ToProcess(path);
 
-        if (reach.Opens(target) is { IsAllowed: false } refused)
-            return Unopened(target, refused.Told);
+        if (reach.Reach(target) is { IsAllowed: false } refused)
+            throw new ToolRefusalException($"Nothing was loaded: {refused.Refusal}", refused.Hint, refused.Type);
 
-        var entry = Resolve(target);
-
-        if (entry is null)
-            return Unopened(target, $"No solution or project found at {paths.ToCaller(target)}");
+        var entry = Resolve(target)
+            ?? throw new ToolRefusalException(
+                $"No solution or project found at {paths.ToCaller(target)}",
+                NotFoundHint,
+                RefusalTypes.NotFound);
 
         var started = Stopwatch.GetTimestamp();
         var identity = Identify(entry);
@@ -75,7 +82,10 @@ internal sealed class RoslynSolutionHost(
             workspace.Dispose();
             Log.OpenFailed(log, error, entry);
 
-            return Unopened(target, error.Message);
+            throw new ToolRefusalException(
+                $"MSBuild could not open {paths.ToCaller(entry)}: {error.Message}",
+                UnopenedHint,
+                RefusalTypes.Unopened);
         }
 
         var projects = Inventory(solution);
@@ -308,7 +318,4 @@ internal sealed class RoslynSolutionHost(
                 .Order(StringComparer.Ordinal)
         ];
     }
-
-    private WorkspaceReport Unopened(string target, string note) =>
-        new(string.Empty, WorkspaceReadiness.Failed, paths.ToCaller(target), [], [], null, null, 0, [note]);
 }

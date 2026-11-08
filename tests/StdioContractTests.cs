@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using Snail.Sdk.Mcp.Hosting;
+using Snail.Sdk.Mcp.Hosting.Answers;
 using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Roslyn.Tests;
@@ -189,8 +190,39 @@ public sealed class StdioContractTests
         Assert.Equal(writing, declared);
     }
 
+    /// <summary>
+    /// The server's own tools answer in the envelope of the fleet, the record as its data and the text alone: structured
+    /// content beside it would carry the same record twice.
+    /// </summary>
     [Fact]
-    public async Task CallTool_FailingCall_AnswersTheCallerAndLeavesTheTraceOnStandardError()
+    public async Task CallTool_LoadingASolution_AnswersTheReportAsTheDataOfTheEnvelope()
+    {
+        var folder = TestFolder.Create();
+
+        try
+        {
+            await File.WriteAllTextAsync(
+                Path.Combine(folder, "Tiny.csproj"),
+                """<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup></Project>""");
+            await File.WriteAllTextAsync(Path.Combine(folder, "Thing.cs"), "namespace Tiny; public sealed class Thing;");
+
+            await using var client = await ServerProgram.StartAsync("Snail.MCP.Roslyn", "SNAIL_ROSLYN_SERVER");
+
+            var answer = await client.CallToolAsync("load_solution", new Dictionary<string, object?> { ["path"] = folder });
+
+            Assert.True(answer.IsOk(), answer.Text());
+            Assert.StartsWith("""{"ok":true,"data":{"id":""", answer.Text(), StringComparison.Ordinal);
+            Assert.False(string.IsNullOrEmpty(answer.Data()!["id"]!.GetValue<string>()));
+            Assert.Null(answer.StructuredContent);
+        }
+        finally
+        {
+            Directory.Delete(folder, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task CallTool_RefusedCall_AnswersTheEnvelopeWithHintAndTypeAndLogsNoTrace()
     {
         using var server = Start();
 
@@ -209,10 +241,13 @@ public sealed class StdioContractTests
 
         Assert.NotNull(answer);
 
-        var content = answer!.RootElement.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString();
+        var result = answer!.RootElement.GetProperty("result");
+        var content = result.GetProperty("content")[0].GetProperty("text").GetString();
 
-        Assert.Contains("not loaded", content ?? string.Empty, StringComparison.Ordinal);
-        Assert.StartsWith("""{"ok":false,"error":"get_diagnostics: """, content, StringComparison.Ordinal);
+        Assert.True(result.GetProperty("isError").GetBoolean(), content);
+        Assert.Equal(
+            """{"ok":false,"error":"Solution 'never-loaded' is not loaded.","hint":"Call load_solution first.","type":"notLoaded"}""",
+            content);
 
         server.StandardInput.Close();
 
@@ -220,8 +255,7 @@ public sealed class StdioContractTests
 
         await server.WaitForExitAsync(CancellationToken.None);
 
-        Assert.Contains("get_diagnostics", logged, StringComparison.Ordinal);
-        Assert.Contains(nameof(InvalidOperationException), logged, StringComparison.Ordinal);
+        Assert.DoesNotContain(nameof(ToolRefusalException), logged, StringComparison.Ordinal);
     }
 
     /// <summary>

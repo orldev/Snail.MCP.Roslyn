@@ -25,7 +25,7 @@ public static class McpServerHost
     public static IHost Of(string[] args)
     {
         var settings = WorkspaceSettings.Read();
-        var endpoint = McpEndpoint.Read(settings, DefaultUrl);
+        var endpoint = McpEndpoint.Read(settings, DefaultUrl, new McpEndpointOptions { Reach = McpReach.LoopbackOrContainer });
 
         return endpoint.Transport is McpTransport.Http ? Listening(args, endpoint, settings) : Spoken(args, settings);
     }
@@ -33,8 +33,9 @@ public static class McpServerHost
     /// <summary>The server answering sessions at <paramref name="endpoint"/>.</summary>
     /// <remarks>
     /// Inside a container on every interface, because the callers are the workers of the machine, each in its own
-    /// container, and the published port does not reach a container's loopback; anywhere else on loopback, unless the
-    /// settings ask for every interface. The host is Snail.Sdk.Mcp.Http's: log lines go to stderr, the heap is trimmed
+    /// container, and the published port does not reach a container's loopback; anywhere else on loopback only — the
+    /// server runs scripts with no key, so every interface, or an address beyond loopback, outside a container is refused
+    /// when the settings are read, naming the variable. The host is Snail.Sdk.Mcp.Http's: log lines go to stderr, the heap is trimmed
     /// when idle, and the endpoint is mapped behind its refusal of a request carrying <c>Origin</c> — a page in a browser
     /// always sends one, an agent's client never does, and this server runs scripts with no key. The browser is turned
     /// away before the session's root is looked at, so a page does not even learn which working copies the machine has;
@@ -43,9 +44,8 @@ public static class McpServerHost
     /// </remarks>
     private static WebApplication Listening(string[] args, McpEndpoint endpoint, IConfiguration settings)
     {
-        var builder = McpHttpHost.CreateBuilder(args, endpoint);
+        var builder = McpHttpHost.CreateBuilder(args, endpoint, settings);
 
-        builder.Configuration.AddConfiguration(settings);
         builder.ConfigureMcpServerAtAnAddress(settings);
 
         var app = builder.Build();
@@ -59,7 +59,7 @@ public static class McpServerHost
 
     private static IHost Spoken(string[] args, IConfiguration settings)
     {
-        var builder = McpHost.CreateBuilder(args);
+        var builder = McpHost.CreateBuilder(args, settings);
 
         builder.ConfigureMcpServerAsAProgram(settings);
 

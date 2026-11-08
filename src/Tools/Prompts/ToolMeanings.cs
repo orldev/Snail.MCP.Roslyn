@@ -8,6 +8,9 @@ namespace Snail.MCP.Roslyn.Tools.Prompts;
 /// </remarks>
 public static class ToolMeanings
 {
+    /// <summary>Tasks as a caller of this server puts them, shown in the description of find_tool's <c>task</c>.</summary>
+    public static readonly IReadOnlyList<string> Examples = ["does it compile", "rename a symbol safely", "who calls this method"];
+
     /// <summary>The other words of each tool, by its name.</summary>
     public static readonly IReadOnlyDictionary<string, string> All = new Dictionary<string, string>(StringComparer.Ordinal)
     {

@@ -11,7 +11,11 @@ public static class ServerGuidance
         Do not know which tool: call find_tool with the task in words. Several questions that do not depend on
         each other's answers: call run_tools once with them as steps, instead of a round trip each.
 
-        Start of a C# task: call load_solution once on the .sln or .csproj, keep the returned solutionId.
+        Every answer is JSON: {"ok":true,"data":…} with the tool's answer in data. A failed call is flagged isError
+        and answers ok false, an error, a hint when there is something to do and a type (notLoaded: call
+        load_solution): read them and change the call instead of repeating it.
+
+        Start of a C# task: call load_solution once on the .sln or .csproj, keep data.id as the solutionId.
         Readiness 'Degraded' means restore has not run and empty answers are unreliable — say so rather than trusting them.
 
         Addressing a symbol: give symbolId from search_symbols, or, where the tool takes one, a bare name that
@@ -38,7 +42,5 @@ public static class ServerGuidance
         For a question no tool covers: run_script, one pass over the whole solution.
 
         Notes on an answer are part of it. An empty result carrying a note means "unknown", never "none".
-        A failed call is flagged isError and answers JSON with ok false, an error and often a hint: read them and
-        change the call instead of repeating it.
         """;
 }

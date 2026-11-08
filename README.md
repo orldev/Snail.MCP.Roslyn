@@ -17,7 +17,22 @@ cannot ask a question of the entire solution, and it cannot know in milliseconds
 
 ## Tools
 
-Call `load_solution` once, then pass the returned `solutionId` to everything else.
+Call `load_solution` once, then pass the `id` it answers as `solutionId` to everything else.
+
+Every tool answers in the envelope every Snail server answers in — one block of JSON text:
+
+```json
+{"ok":true,"data":{"id":"00a0bec2","readiness":"Ready","path":"/src/Tiny/Tiny.csproj","projects":[…],"notes":[]}}
+```
+
+A call that could not be answered is flagged `isError` and says why, what to do about it, and a `type` a program can
+branch on — `notLoaded`, `notFound`, `unopened`, `notMarkup`, `outOfRange`, `tooLarge` for an answer past
+`MAX_RESPONSE_CHARS`, the session's `outside` and `noRoot`, Snail.Sdk's `arguments` and `notGranted`; a failure inside
+the server is `internal`, with its trace in the log:
+
+```json
+{"ok":false,"error":"Solution 'never-loaded' is not loaded.","hint":"Call load_solution first.","type":"notLoaded"}
+```
 
 **Solution**
 `load_solution` · `unload_solution` · `get_diagnostics` · `get_solution_overview` · `check_architecture` · `health_check`
@@ -111,9 +126,10 @@ SNAIL_MCP_ROSLYN_MAX_RUN_STEPS=10
 the server speaks stdio to whatever started it, belongs to that one caller and reaches wherever it does — or only
 `SESSION_ROOTS`, when they are set — the shape a desktop client installs. Set, it serves sessions at `/mcp`, each
 naming the copy it works in: `http://mcp-roslyn:8817/mcp?root=/workspaces/task-7`, and answers `GET /healthz`. Inside
-a container it listens on every interface; anywhere else on loopback, unless `LISTENS_ON_EVERY_INTERFACE=true`. One
-server then stands behind every agent on the machine, and its warm compilations are shared between steps instead of
-rebuilt for each.
+a container it listens on every interface; anywhere else on loopback only — it runs scripts with no key, so
+`LISTENS_ON_EVERY_INTERFACE=true` or an address beyond loopback outside a container is refused at start, naming the
+variable. One server then stands behind every agent on the machine, and its warm compilations are shared between steps
+instead of rebuilt for each.
 
 A session opened at a root **this machine does not have** is refused on the spot, with the root named —
 `400 this machine has no /workspaces/task-7`. Once servers answer at addresses, the worst thing that can

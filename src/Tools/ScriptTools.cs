@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Roslyn.Tools.Prompts;
 
@@ -9,11 +10,12 @@ public sealed class ScriptTools(IScriptRunner scripts)
 {
     [McpServerTool(Name = "run_script", ReadOnly = false, Destructive = true, OpenWorld = true)]
     [Description(ToolDescriptions.RunScript)]
-    public Task<ScriptResult> RunScript(
+    public Task<CallToolResult> RunScript(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("C# script body; its last expression is the returned value.")]
         string code,
         CancellationToken cancellationToken) =>
-        scripts.RunAsync(solutionId, code, cancellationToken);
+        scripts.RunAsync(solutionId, code, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.ScriptResult);
 }

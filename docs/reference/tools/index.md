@@ -39,5 +39,5 @@ Call `load_solution` once, then pass the returned `solutionId` to everything els
 | [`find_uncovered_symbols`](architecture.md#find_uncovered_symbols) | Registrations, unused and untested code | List public declarations that no test project in this solution references. |
 | [`find_tests_for_symbol`](architecture.md#find_tests_for_symbol) | Registrations, unused and untested code | List the test methods that reach this symbol, so you know what will catch a change to it before you make one. |
 | [`run_script`](script.md#run_script) | Scripts over the whole solution | Evaluate a C# script against the loaded solution and return its value and printed output. |
-| [`run_tools`](sequence.md#run_tools) | Several tools in one call | Runs several of this server's tools in one call, in order, stopping at the first that fails. |
-| [`find_tool`](discovery.md#find_tool) | Finding a tool | Finds this server's tools for a task described in words, with what each takes, enough to call it at once. |
+| [`run_tools`](sequence.md#run_tools) | Several tools in one call | Runs tools of this server in order in one call, stopping at the first failure; no step sees an earlier answer. |
+| [`find_tool`](discovery.md#find_tool) | Finding a tool | Finds tools of this server for a task in words, best first, with the parameters of each. |

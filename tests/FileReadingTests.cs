@@ -1,3 +1,6 @@
+using Snail.MCP.Roslyn.Adapters.Workspaces;
+using Snail.Sdk.Mcp.Hosting.Answers;
+
 namespace Snail.MCP.Roslyn.Tests;
 
 [Collection(nameof(AnalysisCollection))]
@@ -100,11 +103,14 @@ public sealed class FileReadingTests(AnalysisFixture fixture)
     }
 
     [Fact]
-    public async Task ReadAsync_MissingFile_ThrowsFileNotFound()
+    public async Task ReadAsync_MissingFile_IsRefusedAsNotFound()
     {
         var file = Path.Combine(RepositoryPaths.Source, "DoesNotExist.cs");
 
-        await Assert.ThrowsAsync<FileNotFoundException>(() =>
+        var refused = await Assert.ThrowsAsync<ToolRefusalException>(() =>
             fixture.Reader.ReadAsync(fixture.SolutionId, file, 1, 2000, CancellationToken.None));
+
+        Assert.Equal(RefusalTypes.NotFound, refused.Type);
+        Assert.Contains("DoesNotExist.cs", refused.Error, StringComparison.Ordinal);
     }
 }

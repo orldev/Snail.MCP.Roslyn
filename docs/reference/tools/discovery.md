@@ -2,15 +2,15 @@
 
 ## <code>find_<wbr>tool</code>
 
-Finds this server's tools for a task described in words, with what each takes, enough to call it at once. Answers the best matches first; when nothing matches, every tool, with isMatched false. Ask it before concluding that the server has no tool for something.
+Finds tools of this server for a task in words, best first, with the parameters of each. Ask it before deciding that no tool exists.
 
 *read-only · repeat-safe · stays on this machine.*
 
 | Parameter | Type | Required | Default | Description |
 | --- | --- | --- | --- | --- |
-| `task` | `string?` | — | `null` | What you are trying to do, in words: 'change one line', 'push the branch'. |
-| `limit` | `integer` | — | `5` | How many tools to name, 1 to 20; five by default. |
-| `intent` | `string?` | — | `null` | The same as task, for a caller that names it intent; task wins when both are sent. |
+| `task` | `string?` | — | `null` | What you are trying to do, in words: 'does it compile', 'rename a symbol safely', 'who calls this method'. |
+| `limit` | `integer` | — | `5` | How many tools to name, 1 to 20. |
+| `intent` | `string?` | — | `null` | Same as task. |
 
 <details><summary>JSON Schema</summary>
 
@@ -19,7 +19,7 @@ Finds this server's tools for a task described in words, with what each takes, e
   "type": "object",
   "properties": {
     "task": {
-      "description": "What you are trying to do, in words: \u0027change one line\u0027, \u0027push the branch\u0027.",
+      "description": "What you are trying to do, in words: \u0027does it compile\u0027, \u0027rename a symbol safely\u0027, \u0027who calls this method\u0027.",
       "type": [
         "string",
         "null"
@@ -27,12 +27,12 @@ Finds this server's tools for a task described in words, with what each takes, e
       "default": null
     },
     "limit": {
-      "description": "How many tools to name, 1 to 20; five by default.",
+      "description": "How many tools to name, 1 to 20.",
       "type": "integer",
       "default": 5
     },
     "intent": {
-      "description": "The same as task, for a caller that names it intent; task wins when both are sent.",
+      "description": "Same as task.",
       "type": [
         "string",
         "null"

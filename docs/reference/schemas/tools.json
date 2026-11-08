@@ -1364,25 +1364,25 @@
   },
   {
     "name": "run_tools",
-    "description": "Runs several of this server\u0027s tools in one call, in order, stopping at the first that fails. For steps that do not depend on reading the previous answer. Each step is an ordinary call of that tool under the same grant; a tool that runs other tools is not a step. An answer too long for the call is left out and its step flagged isOmitted: call that tool alone to read it.",
+    "description": "Runs tools of this server in order in one call, stopping at the first failure; no step sees an earlier answer. An answer past the budget is flagged isOmitted: call that tool alone.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "steps": {
-          "description": "The steps in order: {\u0022tool\u0022: \u0022read_file\u0022, \u0022arguments\u0022: {\u0022path\u0022: \u0022src/App.cs\u0022}}. find_tool says what a tool takes.",
+          "description": "The steps, in order.",
           "type": "array",
           "items": {
             "type": "object",
             "properties": {
               "tool": {
-                "description": "The tool\u0027s name, as the tool list or find_tool gives it.",
+                "description": "The tool to call.",
                 "type": [
                   "string",
                   "null"
                 ]
               },
               "arguments": {
-                "description": "The tool\u0027s arguments, as a direct call of the tool would send them.",
+                "description": "The arguments of a direct call.",
                 "type": [
                   "object",
                   "null"
@@ -1409,12 +1409,12 @@
   },
   {
     "name": "find_tool",
-    "description": "Finds this server\u0027s tools for a task described in words, with what each takes, enough to call it at once. Answers the best matches first; when nothing matches, every tool, with isMatched false. Ask it before concluding that the server has no tool for something.",
+    "description": "Finds tools of this server for a task in words, best first, with the parameters of each. Ask it before deciding that no tool exists.",
     "inputSchema": {
       "type": "object",
       "properties": {
         "task": {
-          "description": "What you are trying to do, in words: \u0027change one line\u0027, \u0027push the branch\u0027.",
+          "description": "What you are trying to do, in words: \u0027does it compile\u0027, \u0027rename a symbol safely\u0027, \u0027who calls this method\u0027.",
           "type": [
             "string",
             "null"
@@ -1422,12 +1422,12 @@
           "default": null
         },
         "limit": {
-          "description": "How many tools to name, 1 to 20; five by default.",
+          "description": "How many tools to name, 1 to 20.",
           "type": "integer",
           "default": 5
         },
         "intent": {
-          "description": "The same as task, for a caller that names it intent; task wins when both are sent.",
+          "description": "Same as task.",
           "type": [
             "string",
             "null"

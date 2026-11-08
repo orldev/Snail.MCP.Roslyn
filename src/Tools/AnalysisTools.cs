@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using ModelContextProtocol;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Roslyn.Tools.Prompts;
 
@@ -10,7 +11,7 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
 {
     [McpServerTool(Name = "analyze_change_impact", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.AnalyzeChangeImpact)]
-    public Task<ImpactReport> AnalyzeChangeImpact(
+    public Task<CallToolResult> AnalyzeChangeImpact(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -26,11 +27,12 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         int column = 0,
         [Description("Maximum entries per section of the answer.")]
         int limit = 50) =>
-        impact.AnalyzeAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), limit, cancellationToken);
+        impact.AnalyzeAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), limit, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.ImpactReport);
 
     [McpServerTool(Name = "run_analyzers", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.RunAnalyzers)]
-    public Task<AnalyzerPage> RunAnalyzers(
+    public Task<CallToolResult> RunAnalyzers(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -43,11 +45,12 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         IssueSeverity minimum = IssueSeverity.Info,
         [Description("Maximum findings to return.")]
         int limit = 50) =>
-        analyzers.RunAsync(solutionId, scope, category, minimum, limit, cancellationToken, new ToolProgress(progress));
+        analyzers.RunAsync(solutionId, scope, category, minimum, limit, cancellationToken, new ToolProgress(progress))
+            .AnsweredAsync(RoslynJson.Default.AnalyzerPage);
 
     [McpServerTool(Name = "get_code_fixes", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetCodeFixes)]
-    public Task<CodeFixPage> GetCodeFixes(
+    public Task<CallToolResult> GetCodeFixes(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Absolute path of the file the diagnostic points at.")]
@@ -57,11 +60,12 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         CancellationToken cancellationToken,
         [Description("Diagnostic id to fix, such as CS0103; the first diagnostic on the line when omitted.")]
         string? diagnosticId = null) =>
-        analyzers.FixesAsync(solutionId, file, line, diagnosticId, cancellationToken);
+        analyzers.FixesAsync(solutionId, file, line, diagnosticId, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.CodeFixPage);
 
     [McpServerTool(Name = "validate", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.Validate)]
-    public Task<ValidationResult> Validate(
+    public Task<CallToolResult> Validate(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         [Description("Absolute path the contents are meant for; the file need not exist yet.")]
@@ -69,5 +73,6 @@ public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyz
         [Description("The complete proposed contents of that file.")]
         string content,
         CancellationToken cancellationToken) =>
-        validator.ValidateAsync(solutionId, file, content, cancellationToken);
+        validator.ValidateAsync(solutionId, file, content, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.ValidationResult);
 }

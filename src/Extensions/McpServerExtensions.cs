@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using ModelContextProtocol;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Snail.MCP.Roslyn.Adapters.Workspaces;
 using Snail.MCP.Roslyn.Configuration;
 using Snail.Sdk.Mcp.Hosting.Answers;
 
@@ -11,9 +12,6 @@ namespace Snail.MCP.Roslyn.Extensions;
 
 public static class McpServerExtensions
 {
-    /// <summary>The type of the refusal of an answer past the budget.</summary>
-    public const string TooLarge = "tooLarge";
-
     extension(IMcpServerBuilder builder)
     {
         /// <summary>Refuses an answer too large to reach the caller whole, instead of letting it be cut.</summary>
@@ -23,9 +21,9 @@ public static class McpServerExtensions
         /// is a plan applied in part. Refusing names the size and what to lower, which the caller can act on,
         /// in the failure envelope every other refusal of the server answers in.
         /// <para>
-        /// The content is measured, not the structured content beside it: an answer of Snail.Sdk's tools —
-        /// <c>find_tool</c>, <c>run_tools</c> — carries its data in both, and counted twice, the whole catalogue
-        /// <c>find_tool</c> answers when nothing matches came to 70 000 characters and was refused.
+        /// The content is measured, not the structured content beside it: this server's own tools answer the text alone,
+        /// but an answer of Snail.Sdk's — <c>find_tool</c>, <c>run_tools</c> — carries its data in both, and counted twice
+        /// a <c>run_tools</c> of a few pages would be refused at half the size it reaches the caller in.
         /// </para></remarks>
         public IMcpServerBuilder BoundAnswers()
         {
@@ -54,6 +52,6 @@ public static class McpServerExtensions
             return ToolAnswer.Failed(
                 $"{context.Params?.Name}: the answer is {size} characters against a budget of {budget}, so it is not returned rather than returned cut in half",
                 "Ask for less: a lower 'limit', a narrower 'scope' or 'file', fewer lines, or one project at a time.",
-                TooLarge);
+                RefusalTypes.TooLarge);
         };
 }

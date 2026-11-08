@@ -61,7 +61,7 @@ internal sealed class RoslynHierarchy(IPathMap paths, SolutionCache cache) : IHi
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var symbol = await ResolveAsync(solution, query, cancellationToken);
+        var (symbol, _) = await _resolver.PickAsync(solution, query, SymbolFilter.Type, cancellationToken);
 
         if (symbol is not INamedTypeSymbol type)
             return null;

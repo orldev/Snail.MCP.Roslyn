@@ -28,7 +28,7 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
         services.AddCodeAnalysis(new ConfigurationBuilder().AddInMemoryCollection(settings).Build());
 
         services.AddSingleton(address ?? SessionAddress.None);
-        services.AddMcpServer().WithSessionRoots(ServiceCollectionExtensions.Volumes);
+        services.AddSessionRoots(ServiceCollectionExtensions.Volumes, ServiceCollectionExtensions.Roots);
 
         _provider = services.BuildServiceProvider();
     }

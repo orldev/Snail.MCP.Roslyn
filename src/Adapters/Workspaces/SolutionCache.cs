@@ -3,6 +3,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.MSBuild;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Options;
+using Snail.Sdk.Mcp.Hosting.Answers;
 using Snail.Sdk.Mcp.Hosting.Sessions;
 using Snail.MCP.Roslyn.Configuration;
 
@@ -70,13 +71,21 @@ internal sealed class SolutionCache(IOptions<WorkspaceOptions> options, SessionR
     {
         if (!_entries.TryGetValue(id, out var entry))
         {
-            throw new InvalidOperationException(_dropped.ContainsKey(id)
-                ? $"Solution '{id}' was dropped to keep at most {Math.Max(1, options.Value.MaxSolutions)} solutions in memory. Call load_solution again."
-                : $"Solution '{id}' is not loaded. Call load_solution first.");
+            throw _dropped.ContainsKey(id)
+                ? new ToolRefusalException(
+                    $"Solution '{id}' was dropped to keep at most {Math.Max(1, options.Value.MaxSolutions)} solutions in memory.",
+                    "Call load_solution again.",
+                    RefusalTypes.NotLoaded)
+                : new ToolRefusalException($"Solution '{id}' is not loaded.", "Call load_solution first.", RefusalTypes.NotLoaded);
         }
 
-        if (reach.Opens(entry.EntryPath) is { IsAllowed: false } refused)
-            throw new InvalidOperationException($"Solution '{id}' was loaded by another session. {refused.Told}");
+        if (reach.Reach(entry.EntryPath) is { IsAllowed: false } refused)
+        {
+            throw new ToolRefusalException(
+                $"Solution '{id}' was loaded by another session. {refused.Refusal}",
+                refused.Hint,
+                refused.Type);
+        }
 
         entry.LastUsed = DateTime.UtcNow;
 

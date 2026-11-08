@@ -74,9 +74,10 @@ public static class ServiceCollectionExtensions
         /// </summary>
         /// <remarks>
         /// Which transport is wanted is said by calling for it, never inferred from a port number, so that
-        /// a port left at zero cannot quietly turn a listening server into a silent one. A failure keeps the words it
-        /// always had — the tool, then what went wrong — inside the envelope, with no hint: the failures of this server
-        /// are its refusals ("not loaded", "outside this session"), and "try once more" would send the model round again.
+        /// a port left at zero cannot quietly turn a listening server into a silent one. Every tool answers in the
+        /// envelope: a caller's mistake found deep inside — a solution not loaded, a path outside the session — is thrown
+        /// as a refusal with its hint and type (<see cref="RefusalTypes"/>), and whatever else a tool throws is the
+        /// server's own failure, answered with Snail.Sdk's "try once more" and logged with its trace.
         /// <c>run_tools</c> takes as many steps and brings back as much as this server's settings always allowed.
         /// </remarks>
         private IMcpServerBuilder AddMcpTools(IConfiguration settings)
@@ -88,13 +89,9 @@ public static class ServiceCollectionExtensions
                     server.ServerInfo = ServerIdentity.Of(typeof(ServiceCollectionExtensions).Assembly);
                     server.ServerInstructions = ServerGuidance.Instructions;
                 })
-                .ExplainFailures(failures =>
-                {
-                    failures.Error = (tool, error) => $"{tool}: {error.Message}";
-                    failures.Hint = null;
-                })
+                .ExplainFailures()
                 .RefuseWhatWasNotGranted()
-                .WithSessionRoots(Volumes, roots => roots.RootsSetting = RootsSetting)
+                .WithSessionRoots(Volumes, Roots)
                 .BoundAnswers()
                 .WithTools<SolutionTools>()
                 .WithTools<SymbolTools>()
@@ -106,6 +103,8 @@ public static class ServiceCollectionExtensions
                 {
                     foreach (var (tool, words) in ToolMeanings.All)
                         discovery.Meanings[tool] = words;
+
+                    discovery.Examples = [.. ToolMeanings.Examples];
                 })
                 .WithToolSequences(sequences =>
                 {
@@ -113,6 +112,18 @@ public static class ServiceCollectionExtensions
                     sequences.OutputBudget = options.MaxResponseChars;
                 });
         }
+    }
+
+    /// <summary>How a session's roots are read here: the setting named to a session that has none, and a program configured with none reaching wherever its process can.</summary>
+    /// <remarks>
+    /// A server started as a program for one caller — the shape a desktop client installs, with no settings at all — has
+    /// always opened whatever solution its caller named. Over HTTP a session that names no root at a server configured
+    /// with none is turned away at the door, before a call is made.
+    /// </remarks>
+    public static void Roots(SessionRootsOptions roots)
+    {
+        roots.RootsSetting = RootsSetting;
+        roots.ReachesEverywhereAsAProgram = true;
     }
 
     /// <summary>The folders this process was configured to serve; empty when it was configured with none.</summary>

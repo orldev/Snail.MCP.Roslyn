@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Extensions.Options;
 using Snail.MCP.Roslyn.Configuration;
+using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
@@ -321,7 +322,12 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IOpt
     private async Task<FileView> FromDiskAsync(string path, int startLine, int maxLines, CancellationToken cancellationToken)
     {
         if (!File.Exists(path))
-            throw new FileNotFoundException($"File '{paths.ToCaller(path)}' does not exist.");
+        {
+            throw new ToolRefusalException(
+                $"File '{paths.ToCaller(path)}' does not exist.",
+                "Check the path: it is absolute, and the name and folder are as on disk.",
+                RefusalTypes.NotFound);
+        }
 
         var text = SourceText.From(await File.ReadAllTextAsync(path, cancellationToken));
         var (rendered, start, end) = Slice(text.Lines, startLine, maxLines);

@@ -1,3 +1,4 @@
+using Snail.Sdk.Mcp.Hosting.Answers;
 using Snail.Sdk.Mcp.Hosting.Sessions;
 
 namespace Snail.MCP.Roslyn.Tests;
@@ -29,12 +30,11 @@ public sealed class SessionDoorTests : IDisposable
 
         using var fixture = new AnalysisFixture([], new Address(_mine));
 
-        var report = await fixture.Host.LoadAsync(_theirs, CancellationToken.None);
+        var refused = await Assert.ThrowsAsync<ToolRefusalException>(() => fixture.Host.LoadAsync(_theirs, CancellationToken.None));
 
-        var said = string.Join(" ", report.Notes);
-
-        Assert.Contains("outside this session", said, StringComparison.Ordinal);
-        Assert.Contains(_mine, said, StringComparison.Ordinal);
+        Assert.Contains("outside this session", refused.Error, StringComparison.Ordinal);
+        Assert.Contains(_mine, refused.Error, StringComparison.Ordinal);
+        Assert.Equal(Reached.Outside, refused.Type);
     }
 
     /// <summary>
@@ -54,10 +54,11 @@ public sealed class SessionDoorTests : IDisposable
 
         address.Root = _mine;
 
-        var refused = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var refused = await Assert.ThrowsAsync<ToolRefusalException>(() =>
             fixture.Diagnostics.ReadAsync(loaded.Id, null, IssueSeverity.Error, 10, false, CancellationToken.None));
 
-        Assert.Contains("another session", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("another session", refused.Error, StringComparison.Ordinal);
+        Assert.Equal(Reached.Outside, refused.Type);
     }
 
     public void Dispose()

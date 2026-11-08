@@ -1,3 +1,6 @@
+using Snail.MCP.Roslyn.Adapters.Workspaces;
+using Snail.Sdk.Mcp.Hosting.Answers;
+
 namespace Snail.MCP.Roslyn.Tests;
 
 public sealed class CacheLimitTests : IDisposable
@@ -26,10 +29,12 @@ public sealed class CacheLimitTests : IDisposable
         var dropped = (await fixture.Host.LoadAsync(_first, CancellationToken.None)).Id;
         var kept = (await fixture.Host.LoadAsync(_second, CancellationToken.None)).Id;
 
-        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var failure = await Assert.ThrowsAsync<ToolRefusalException>(() =>
             fixture.Diagnostics.ReadAsync(dropped, null, IssueSeverity.Error, 10, false, CancellationToken.None));
 
-        Assert.Contains("dropped", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("dropped", failure.Error, StringComparison.Ordinal);
+        Assert.Equal(RefusalTypes.NotLoaded, failure.Type);
+        Assert.Equal("Call load_solution again.", failure.Hint);
 
         var health = await fixture.Surveyor.HealthAsync(kept, CancellationToken.None);
 

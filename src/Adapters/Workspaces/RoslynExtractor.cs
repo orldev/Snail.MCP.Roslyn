@@ -1,5 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
@@ -43,14 +44,18 @@ internal sealed class RoslynExtractor(IPathMap paths, SolutionCache cache) : ICo
         var path = paths.ToProcess(request.File);
 
         var markup = Documents.FindMarkup(solution, path)
-            ?? throw new InvalidOperationException(
-                $"'{request.File}' is not a markup file of the loaded solution, so there is nothing to extract from.");
+            ?? throw new ToolRefusalException(
+                $"'{request.File}' is not a markup file of the loaded solution, so there is nothing to extract from.",
+                "Name a .razor or .cshtml file the loaded solution holds, by its absolute path.",
+                RefusalTypes.NotMarkup);
 
         var text = await markup.GetTextAsync(cancellationToken);
 
         if (request.StartLine < 1 || request.EndLine < request.StartLine || request.EndLine > text.Lines.Count)
-            throw new ArgumentException(
-                $"Lines {request.StartLine}-{request.EndLine} do not fit the file, which has {text.Lines.Count} lines.");
+            throw new ToolRefusalException(
+                $"Lines {request.StartLine}-{request.EndLine} do not fit the file, which has {text.Lines.Count} lines.",
+                "Give one-based startLine and endLine inside the file, the first not after the last.",
+                RefusalTypes.OutOfRange);
 
         List<string> notes = [];
 

@@ -37,6 +37,22 @@ public sealed class DiscoveryTests(DiscoveryTests.Server server) : IClassFixture
         Assert.Equal(listed.Count, answer.Data()!["tools"]!.AsArray().Count);
     }
 
+    /// <summary>The examples find_tool shows under <c>task</c> are this server's own words, and each of them finds a tool.</summary>
+    [Fact]
+    public async Task Every_example_shown_to_the_caller_is_a_task_that_finds_a_tool()
+    {
+        var listed = await server.Client.ListToolsAsync();
+        var described = listed.Single(tool => tool.Name == "find_tool").ProtocolTool.InputSchema.GetRawText();
+
+        foreach (var example in ToolMeanings.Examples)
+        {
+            var answer = await server.Client.CallToolAsync("find_tool", new Dictionary<string, object?> { ["task"] = example, ["limit"] = 3 });
+
+            Assert.Contains(example, described, StringComparison.Ordinal);
+            Assert.True(answer.Data()!["isMatched"]!.GetValue<bool>(), example);
+        }
+    }
+
     /// <summary>The fleet's ways in are listed beside the server's own tools, under the names every server spells alike.</summary>
     [Fact]
     public async Task The_ways_in_of_the_fleet_are_listed()

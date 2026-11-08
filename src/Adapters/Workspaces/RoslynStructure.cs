@@ -95,7 +95,7 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         CancellationToken cancellationToken)
     {
         var solution = await cache.FreshAsync(solutionId, cancellationToken);
-        var (symbol, candidates) = await _resolver.PickAsync(solution, query, cancellationToken);
+        var (symbol, candidates) = await _resolver.PickAsync(solution, query, SymbolFilter.Type, cancellationToken);
 
         if (symbol is not INamedTypeSymbol type)
             return Empty("move_type", query, candidates);

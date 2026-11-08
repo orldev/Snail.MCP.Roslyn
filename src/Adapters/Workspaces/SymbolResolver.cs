@@ -22,9 +22,20 @@ internal sealed class SymbolResolver(IPathMap paths)
     /// <summary>Resolves the symbol, or returns the candidates when a bare name matches more than one.</summary>
     /// <remarks>A name is looked up by name rather than by predicate: the predicate overload asks every declaration in
     /// the solution, the name overload asks the index Roslyn already keeps.</remarks>
+    public Task<(ISymbol? Symbol, IReadOnlyList<SymbolMatch> Candidates)> PickAsync(
+        Solution solution,
+        SymbolQuery query,
+        CancellationToken cancellationToken) =>
+        PickAsync(solution, query, SymbolFilter.TypeAndMember, cancellationToken);
+
+    /// <summary>Resolves the symbol, or returns the candidates when a bare name matches more than one of the declarations <paramref name="among"/> names.</summary>
+    /// <remarks>A tool that takes a type names a type: <c>move_type</c> and <c>get_type_hierarchy</c> promise a bare name
+    /// "used only when it matches exactly one type", and a property of the same name — a generated serializer context
+    /// declares one for every type it writes — is no candidate for either.</remarks>
     public async Task<(ISymbol? Symbol, IReadOnlyList<SymbolMatch> Candidates)> PickAsync(
         Solution solution,
         SymbolQuery query,
+        SymbolFilter among,
         CancellationToken cancellationToken)
     {
         if (!query.HasName)
@@ -34,7 +45,7 @@ internal sealed class SymbolResolver(IPathMap paths)
             solution,
             query.Name!,
             ignoreCase: false,
-            SymbolFilter.TypeAndMember,
+            among,
             cancellationToken);
 
         List<ISymbol> exact = [.. found.Where(symbol => symbol.Locations.Any(location => location.IsInSource))];

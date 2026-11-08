@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 using Snail.MCP.Roslyn.Tools.Prompts;
 
@@ -9,7 +10,7 @@ public sealed class ArchitectureTools(IContainerReader container, ICodeUsageAudi
 {
     [McpServerTool(Name = "get_di_registrations", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetDiRegistrations)]
-    public Task<RegistrationReport> GetDiRegistrations(
+    public Task<CallToolResult> GetDiRegistrations(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -17,11 +18,12 @@ public sealed class ArchitectureTools(IContainerReader container, ICodeUsageAudi
         string? service = null,
         [Description("Maximum registrations to return.")]
         int limit = 100) =>
-        container.ReadAsync(solutionId, service, limit, cancellationToken);
+        container.ReadAsync(solutionId, service, limit, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.RegistrationReport);
 
     [McpServerTool(Name = "find_unused_symbols", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.FindUnusedSymbols)]
-    public Task<AuditPage> FindUnusedSymbols(
+    public Task<CallToolResult> FindUnusedSymbols(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -29,11 +31,12 @@ public sealed class ArchitectureTools(IContainerReader container, ICodeUsageAudi
         string? scope = null,
         [Description("Maximum findings to return.")]
         int limit = 50) =>
-        auditor.UnusedAsync(solutionId, scope, limit, cancellationToken);
+        auditor.UnusedAsync(solutionId, scope, limit, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.AuditPage);
 
     [McpServerTool(Name = "find_uncovered_symbols", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.FindUncoveredSymbols)]
-    public Task<AuditPage> FindUncoveredSymbols(
+    public Task<CallToolResult> FindUncoveredSymbols(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -41,11 +44,12 @@ public sealed class ArchitectureTools(IContainerReader container, ICodeUsageAudi
         string? scope = null,
         [Description("Maximum findings to return.")]
         int limit = 50) =>
-        auditor.UncoveredAsync(solutionId, scope, limit, cancellationToken);
+        auditor.UncoveredAsync(solutionId, scope, limit, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.AuditPage);
 
     [McpServerTool(Name = "find_tests_for_symbol", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.FindTestsForSymbol)]
-    public Task<IReadOnlyList<SymbolMatch>> FindTestsForSymbol(
+    public Task<CallToolResult> FindTestsForSymbol(
         [Description(ParameterDescriptions.Solution)]
         string solutionId,
         CancellationToken cancellationToken,
@@ -61,5 +65,6 @@ public sealed class ArchitectureTools(IContainerReader container, ICodeUsageAudi
         int column = 0,
         [Description("Maximum test methods to return.")]
         int limit = 50) =>
-        auditor.TestsForAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), limit, cancellationToken);
+        auditor.TestsForAsync(solutionId, new SymbolQuery(symbolId, name, file, line, column), limit, cancellationToken)
+            .AnsweredAsync(RoslynJson.Default.IReadOnlyListSymbolMatch);
 }
