@@ -27,7 +27,8 @@ internal sealed class RoslynSolutionHost(
         + "brought level with the files on disk. Call unload_solution first if you need it opened from scratch.";
 
     private const string RestoreHint =
-        "Package restore has not run for at least one project: no obj/project.assets.json exists. "
+        "Package restore has not run for at least one project: its project.assets.json is missing, or misses a package "
+        + "the project declares now, as a checkout of another branch leaves it. "
         + "Run 'dotnet restore' on the solution first. Until then any error about a missing type or namespace "
         + "is about the missing packages, not about the code — do not 'fix' code that is not broken. "
         + "Semantic answers also under-report, so an empty result does not mean the code is clean.";
