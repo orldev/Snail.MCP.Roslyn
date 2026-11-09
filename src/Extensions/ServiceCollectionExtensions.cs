@@ -137,7 +137,15 @@ internal static class ServiceCollectionExtensions
     }
 
     /// <summary>The folders this process was configured to serve; empty when it was configured with none.</summary>
-    /// <remarks>The same function confines the tools and turns sessions away at the door.</remarks>
+    /// <remarks>
+    /// The same function confines the tools and turns sessions away at the door. A volume is the operator's setting, a
+    /// folder of the machine this process runs on, so a leading <c>~</c> is this process's home: Snail.Sdk makes a volume
+    /// absolute against the working directory and took <c>~/Projects</c> for a folder named <c>~</c> there. A path a
+    /// caller names is not expanded so: over HTTP its <c>~</c> is the home of another machine.
+    /// </remarks>
     public static IReadOnlyList<string> Volumes(IServiceProvider services) =>
-        services.GetRequiredService<IOptions<WorkspaceOptions>>().Value.SessionRoots;
+    [
+        .. services.GetRequiredService<IOptions<WorkspaceOptions>>().Value.SessionRoots
+            .Select(volume => ServerFolders.ExpandHome(volume, volume))
+    ];
 }

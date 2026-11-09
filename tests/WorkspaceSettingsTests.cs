@@ -1,4 +1,5 @@
 using System.Collections;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Snail.MCP.Roslyn.Configuration;
@@ -9,6 +10,21 @@ namespace Snail.MCP.Roslyn.Tests;
 /// <summary>The settings file and the variables reach <see cref="WorkspaceOptions"/> the way the server binds it.</summary>
 public sealed class WorkspaceSettingsTests
 {
+    /// <summary>A volume is a folder of this machine, so ~/Projects is a folder in this process's home, not one named ~ under the working directory.</summary>
+    [Fact]
+    public void Volumes_AVolumeInTheHome_IsAFolderOfTheHome()
+    {
+        var settings = new ConfigurationBuilder()
+            .AddInMemoryCollection([new KeyValuePair<string, string?>("SessionRoots:0", "~/Projects")])
+            .Build();
+
+        using var services = new ServiceCollection().AddCodeAnalysis(settings).BuildServiceProvider();
+
+        Assert.Equal(
+            [Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Projects")],
+            ServiceCollectionExtensions.Volumes(services));
+    }
+
     [Fact]
     public void Read_ASettingsFile_ReachesTheOptions()
     {

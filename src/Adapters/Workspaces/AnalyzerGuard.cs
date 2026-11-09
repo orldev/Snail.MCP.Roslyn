@@ -1,4 +1,5 @@
 using Microsoft.Build.Locator;
+using Snail.Sdk.Mcp.Hosting;
 
 namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
@@ -6,8 +7,17 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 /// <remarks>Policy shape adapted from roslyn-codelens-mcp (MIT, © Marcel Roozekrans).</remarks>
 internal static class AnalyzerGuard
 {
-    private static readonly string PackageCache =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
+    /// <summary>The variable NuGet reads its package cache from before it falls back to the one in the user's home.</summary>
+    private const string CacheVariable = "NUGET_PACKAGES";
+
+    /// <summary>
+    /// The package cache restore fills, where a project's own analyzers come from. It was taken from the user's home
+    /// alone, while the image sets <c>NUGET_PACKAGES=/nuget</c> for the mounted cache: in a container every analyzer a
+    /// project restored was refused as one from outside, and <c>run_analyzers</c> and <c>get_diagnostics</c> answered
+    /// without the project's own. A <c>globalPackagesFolder</c> in a nuget.config is not read; such a cache is the
+    /// solution's or the policy <c>all</c>'s.
+    /// </summary>
+    private static readonly string PackageCache = CacheOf(Environment.GetEnvironmentVariable(CacheVariable));
 
     /// <summary>Where .NET itself is installed. A plain project's analyzers come from two places inside it —
     /// sdk/&lt;version&gt;/Sdks/.../analyzers and packs/Microsoft.NETCore.App.Ref/.../analyzers, the runtime's own
@@ -15,7 +25,11 @@ internal static class AnalyzerGuard
     /// trust root used to be derived from. Everything under the installation ships with .NET itself.</summary>
     private static readonly IReadOnlyList<string> DotnetRoots = Installed();
 
-    public static bool Allows(string policy, string? analyzerPath, string? solutionRoot)
+    public static bool Allows(string policy, string? analyzerPath, string? solutionRoot) =>
+        Allows(policy, analyzerPath, solutionRoot, PackageCache);
+
+    /// <summary>Whether the policy lets the analyzer at <paramref name="analyzerPath"/> run, with the package cache at <paramref name="packageCache"/>.</summary>
+    public static bool Allows(string policy, string? analyzerPath, string? solutionRoot, string packageCache)
     {
         if (string.Equals(policy, "all", StringComparison.OrdinalIgnoreCase))
             return true;
@@ -25,7 +39,7 @@ internal static class AnalyzerGuard
 
         var full = Path.GetFullPath(analyzerPath);
 
-        if (IsUnder(full, PackageCache) || DotnetRoots.Any(root => IsUnder(full, root)))
+        if (IsUnder(full, packageCache) || DotnetRoots.Any(root => IsUnder(full, root)))
             return true;
 
         if (string.Equals(policy, "strict", StringComparison.OrdinalIgnoreCase))
@@ -33,6 +47,12 @@ internal static class AnalyzerGuard
 
         return solutionRoot is not null && IsUnder(full, solutionRoot);
     }
+
+    /// <summary>The package cache NuGet uses with <paramref name="configured"/> as its variable: that folder, or the one in the user's home.</summary>
+    public static string CacheOf(string? configured) =>
+        string.IsNullOrWhiteSpace(configured)
+            ? Path.Combine(ServerFolders.Home, ".nuget", "packages")
+            : ServerFolders.FullPath(configured);
 
     /// <summary>True when the assembly at this path came with .NET or with this server, rather than with a
     /// solution it was asked to analyse.</summary>
