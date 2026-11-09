@@ -1,7 +1,8 @@
 name: build and tests
 
 # The shared server CI of Snail.Sdk: the tests, the conformance check and the tool reference, then the framework-dependent
-# server published and asked over stdio, every tool, the way a client starts it. The container image is image.yml.
+# server published and asked over stdio, every tool, the way a client starts it, and over HTTP, the door and the roots a
+# session's address names (AddressTests). The container image is image.yml.
 
 on:
   push:
@@ -16,4 +17,4 @@ jobs:
     uses: orldev/Snail.Sdk/.github/workflows/mcp-ci.yml@v1
     with:
       contract-variable: SNAIL_ROSLYN_SERVER
-      contract-filter: FullyQualifiedName~StdioContract
+      contract-filter: FullyQualifiedName~StdioContract|FullyQualifiedName~AddressTests

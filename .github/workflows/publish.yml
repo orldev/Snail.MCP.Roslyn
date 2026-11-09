@@ -27,7 +27,7 @@ jobs:
     uses: orldev/Snail.Sdk/.github/workflows/mcp-publish.yml@v1
     with:
       contract-variable: SNAIL_ROSLYN_SERVER
-      contract-filter: FullyQualifiedName~StdioContract
+      contract-filter: FullyQualifiedName~StdioContract|FullyQualifiedName~AddressTests
       version: ${{ inputs.version }}
       push: ${{ github.event_name == 'push' || inputs.push }}
 
