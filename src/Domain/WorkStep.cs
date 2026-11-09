@@ -4,4 +4,4 @@ namespace Snail.MCP.Roslyn.Domain;
 /// <param name="Done">How many steps are finished.</param>
 /// <param name="Total">How many steps there are, when that is known before the work starts; null when it is not.</param>
 /// <param name="What">The step in words, as the caller is shown it.</param>
-public sealed record WorkStep(int Done, int? Total, string What);
+internal sealed record WorkStep(int Done, int? Total, string What);

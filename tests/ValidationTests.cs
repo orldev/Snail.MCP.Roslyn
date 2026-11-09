@@ -11,7 +11,7 @@ public sealed class ValidationTests(AnalysisFixture fixture)
         var result = await fixture.Validator.ValidateAsync(
             fixture.SolutionId,
             Candidate,
-            "namespace Snail.MCP.Roslyn.Domain; public sealed class ValidationProbe { public int Broken => NoSuchMember; }",
+            "namespace Snail.MCP.Roslyn.Domain; internal sealed class ValidationProbe { public int Broken => NoSuchMember; }",
             CancellationToken.None);
 
         Assert.False(result.Compiles);
@@ -25,7 +25,7 @@ public sealed class ValidationTests(AnalysisFixture fixture)
         var result = await fixture.Validator.ValidateAsync(
             fixture.SolutionId,
             Candidate,
-            "namespace Snail.MCP.Roslyn.Domain; public sealed class ValidationProbe { public int Fine => 1; }",
+            "namespace Snail.MCP.Roslyn.Domain; internal sealed class ValidationProbe { public int Fine => 1; }",
             CancellationToken.None);
 
         Assert.True(result.Compiles, string.Join("; ", result.Introduced.Select(issue => issue.Message)));

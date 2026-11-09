@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record LoadedProject(
+internal sealed record LoadedProject(
     string Name,
     string? TargetFramework,
     int Documents,

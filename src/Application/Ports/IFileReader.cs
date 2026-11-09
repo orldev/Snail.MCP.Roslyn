@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Application.Ports;
 
 /// <summary>Reads one file with everything the compiler knows about it, so plain text reads become unnecessary.</summary>
-public interface IFileReader
+internal interface IFileReader
 {
     Task<FileView> ReadAsync(
         string solutionId,

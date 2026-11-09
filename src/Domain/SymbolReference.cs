@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record SymbolReference(
+internal sealed record SymbolReference(
     string File,
     int Line,
     int Column,

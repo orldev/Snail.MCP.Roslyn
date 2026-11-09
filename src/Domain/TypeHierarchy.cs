@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record TypeHierarchy(
+internal sealed record TypeHierarchy(
     string SymbolId,
     string Name,
     IReadOnlyList<SymbolMatch> BaseTypes,

@@ -41,41 +41,41 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
 
     public string SolutionId { get; private set; } = string.Empty;
 
-    public WorkspaceReport Report { get; private set; } = null!;
+    internal WorkspaceReport Report { get; private set; } = null!;
 
-    public ISolutionHost Host => _provider.GetRequiredService<ISolutionHost>();
+    internal ISolutionHost Host => _provider.GetRequiredService<ISolutionHost>();
 
-    public IDiagnosticReader Diagnostics => _provider.GetRequiredService<IDiagnosticReader>();
+    internal IDiagnosticReader Diagnostics => _provider.GetRequiredService<IDiagnosticReader>();
 
-    public ISymbolLookup Symbols => _provider.GetRequiredService<ISymbolLookup>();
+    internal ISymbolLookup Symbols => _provider.GetRequiredService<ISymbolLookup>();
 
-    public IReferenceFinder References => _provider.GetRequiredService<IReferenceFinder>();
+    internal IReferenceFinder References => _provider.GetRequiredService<IReferenceFinder>();
 
-    public IRenamePlanner Renames => _provider.GetRequiredService<IRenamePlanner>();
+    internal IRenamePlanner Renames => _provider.GetRequiredService<IRenamePlanner>();
 
-    public IStructureRefactorer Structure => _provider.GetRequiredService<IStructureRefactorer>();
+    internal IStructureRefactorer Structure => _provider.GetRequiredService<IStructureRefactorer>();
 
-    public IImpactAnalyzer Impact => _provider.GetRequiredService<IImpactAnalyzer>();
+    internal IImpactAnalyzer Impact => _provider.GetRequiredService<IImpactAnalyzer>();
 
-    public IHierarchyExplorer Hierarchy => _provider.GetRequiredService<IHierarchyExplorer>();
+    internal IHierarchyExplorer Hierarchy => _provider.GetRequiredService<IHierarchyExplorer>();
 
-    public ISolutionSurveyor Surveyor => _provider.GetRequiredService<ISolutionSurveyor>();
+    internal ISolutionSurveyor Surveyor => _provider.GetRequiredService<ISolutionSurveyor>();
 
-    public IContainerReader Container => _provider.GetRequiredService<IContainerReader>();
+    internal IContainerReader Container => _provider.GetRequiredService<IContainerReader>();
 
-    public ICodeUsageAuditor Auditor => _provider.GetRequiredService<ICodeUsageAuditor>();
+    internal ICodeUsageAuditor Auditor => _provider.GetRequiredService<ICodeUsageAuditor>();
 
-    public IAnalyzerRunner Analyzers => _provider.GetRequiredService<IAnalyzerRunner>();
+    internal IAnalyzerRunner Analyzers => _provider.GetRequiredService<IAnalyzerRunner>();
 
-    public ICodeValidator Validator => _provider.GetRequiredService<ICodeValidator>();
+    internal ICodeValidator Validator => _provider.GetRequiredService<ICodeValidator>();
 
-    public IScriptRunner Scripts => _provider.GetRequiredService<IScriptRunner>();
+    internal IScriptRunner Scripts => _provider.GetRequiredService<IScriptRunner>();
 
-    public IGeneratedCodeReader Generated => _provider.GetRequiredService<IGeneratedCodeReader>();
+    internal IGeneratedCodeReader Generated => _provider.GetRequiredService<IGeneratedCodeReader>();
 
-    public IFileReader Reader => _provider.GetRequiredService<IFileReader>();
+    internal IFileReader Reader => _provider.GetRequiredService<IFileReader>();
 
-    public IComponentExtractor Extractor => _provider.GetRequiredService<IComponentExtractor>();
+    internal IComponentExtractor Extractor => _provider.GetRequiredService<IComponentExtractor>();
 
     public async Task InitializeAsync()
     {
@@ -84,7 +84,7 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
     }
 
     /// <summary>Addresses a member by identifier, because a bare member name is ambiguous by design.</summary>
-    public async Task<SymbolQuery> MemberAsync(string name, string container)
+    internal async Task<SymbolQuery> MemberAsync(string name, string container)
     {
         var matches = await Symbols.SearchAsync(SolutionId, name, SymbolKindFilter.Any, 100, CancellationToken.None);
 

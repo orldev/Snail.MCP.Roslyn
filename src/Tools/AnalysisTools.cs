@@ -7,7 +7,7 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 namespace Snail.MCP.Roslyn.Tools;
 
 [McpServerToolType]
-public sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyzers, ICodeValidator validator)
+internal sealed class AnalysisTools(IImpactAnalyzer impact, IAnalyzerRunner analyzers, ICodeValidator validator)
 {
     [McpServerTool(Name = "analyze_change_impact", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.AnalyzeChangeImpact)]

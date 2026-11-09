@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record Registration(
+internal sealed record Registration(
     string Service,
     string? Implementation,
     string Lifetime,

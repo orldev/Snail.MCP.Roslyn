@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Application.Ports;
 
 /// <summary>Opens solutions, keeps their compilations warm, and releases them on request.</summary>
-public interface ISolutionHost
+internal interface ISolutionHost
 {
     Task<WorkspaceReport> LoadAsync(
         string path,

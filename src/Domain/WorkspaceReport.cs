@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record WorkspaceReport(
+internal sealed record WorkspaceReport(
     string Id,
     WorkspaceReadiness Readiness,
     string Path,

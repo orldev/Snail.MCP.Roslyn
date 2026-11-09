@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record GeneratedFile(
+internal sealed record GeneratedFile(
     string Generator,
     string HintName,
     int Lines,

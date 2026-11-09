@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Application.Ports;
 
 /// <summary>Answers questions whose truth lives at the level of the whole solution.</summary>
-public interface ISolutionSurveyor
+internal interface ISolutionSurveyor
 {
     Task<SolutionOverview> OverviewAsync(
         string solutionId,

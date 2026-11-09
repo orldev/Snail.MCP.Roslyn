@@ -6,7 +6,7 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 namespace Snail.MCP.Roslyn.Tools;
 
 [McpServerToolType]
-public sealed class SymbolTools(
+internal sealed class SymbolTools(
     ISymbolLookup symbols,
     IReferenceFinder references,
     IHierarchyExplorer hierarchy,

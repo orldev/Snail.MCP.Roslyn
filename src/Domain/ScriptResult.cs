@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record ScriptResult(
+internal sealed record ScriptResult(
     bool Succeeded,
     string? Value,
     string Output,

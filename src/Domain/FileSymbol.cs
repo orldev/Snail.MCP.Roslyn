@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Domain;
 
 /// <summary>One declaration a file holds, carrying the identifier the symbol tools expect and its use count.</summary>
-public sealed record FileSymbol(
+internal sealed record FileSymbol(
     string Id,
     string Name,
     string Kind,

@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Application.Ports;
 
 /// <summary>Follows inheritance and call edges the compiler knows and text search cannot see.</summary>
-public interface IHierarchyExplorer
+internal interface IHierarchyExplorer
 {
     Task<IReadOnlyList<SymbolMatch>> ImplementationsAsync(
         string solutionId,

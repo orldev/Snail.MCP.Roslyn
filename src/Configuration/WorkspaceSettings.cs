@@ -12,7 +12,7 @@ namespace Snail.MCP.Roslyn.Configuration;
 /// or a variable of theirs that happens to share a name, is not a setting of this server and must not become one by
 /// accident.
 /// </remarks>
-public static class WorkspaceSettings
+internal static class WorkspaceSettings
 {
     /// <summary>The server's short name, which names its settings file and the prefix of its variables.</summary>
     public const string Name = "roslyn";

@@ -6,7 +6,7 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 namespace Snail.MCP.Roslyn.Tools;
 
 [McpServerToolType]
-public sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer structure, IComponentExtractor extractor)
+internal sealed class RefactorTools(IRenamePlanner planner, IStructureRefactorer structure, IComponentExtractor extractor)
 {
     [McpServerTool(Name = "extract_component", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.ExtractComponent)]

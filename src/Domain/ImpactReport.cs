@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record ImpactReport(
+internal sealed record ImpactReport(
     string SymbolId,
     string Name,
     string Kind,

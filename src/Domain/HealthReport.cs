@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record HealthReport(
+internal sealed record HealthReport(
     string Id,
     WorkspaceReadiness Readiness,
     int Projects,

@@ -13,7 +13,7 @@ namespace Snail.MCP.Roslyn.Extensions;
 /// read once before there is a host, because the endpoint among them decides which host is built at all: a port, or
 /// <c>Transport=Http</c> with a <c>Url</c>, means HTTP, and neither means stdio.
 /// </remarks>
-public static class McpServerHost
+internal static class McpServerHost
 {
     /// <summary>The path a session is opened at, and the one the platform writes into its registry.</summary>
     public const string Path = McpHttpHost.DefaultPath;

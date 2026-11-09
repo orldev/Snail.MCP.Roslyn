@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Domain;
 
 /// <summary>A compiler diagnostic located in source the caller can edit.</summary>
-public sealed record CodeIssue(
+internal sealed record CodeIssue(
     string Id,
     IssueSeverity Severity,
     string Message,

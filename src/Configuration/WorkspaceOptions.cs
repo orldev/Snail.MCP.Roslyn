@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace Snail.MCP.Roslyn.Configuration;
 
-public sealed class WorkspaceOptions
+internal sealed class WorkspaceOptions
 {
     /// <summary>Caller root mapped to process root; an empty map means the two coincide.</summary>
     public Dictionary<string, string> Roots { get; init; } = [];

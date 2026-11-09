@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record SolutionOverview(
+internal sealed record SolutionOverview(
     string Id,
     int Projects,
     int Documents,

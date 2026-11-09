@@ -2,7 +2,7 @@ namespace Snail.MCP.Roslyn.Domain;
 
 /// <summary>What to lift out of a markup file and what judgment the caller supplies: renames of page-private
 /// names, the @code block of the new component, and the tag that takes the block's place.</summary>
-public sealed record ExtractionRequest(
+internal sealed record ExtractionRequest(
     string File,
     int StartLine,
     int EndLine,

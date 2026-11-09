@@ -6,7 +6,7 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 namespace Snail.MCP.Roslyn.Tools;
 
 [McpServerToolType]
-public sealed class ScriptTools(IScriptRunner scripts)
+internal sealed class ScriptTools(IScriptRunner scripts)
 {
     [McpServerTool(Name = "run_script", ReadOnly = false, Destructive = true, OpenWorld = true)]
     [Description(ToolDescriptions.RunScript)]

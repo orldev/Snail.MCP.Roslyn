@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Domain;
 
 /// <summary>A diagnostic from an analyzer rather than the compiler, carrying the category that explains why it matters.</summary>
-public sealed record AnalyzerIssue(
+internal sealed record AnalyzerIssue(
     string Id,
     string Category,
     IssueSeverity Severity,

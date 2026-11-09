@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Application.Ports;
 
 /// <summary>Moves code between namespaces, files and shapes; returns edits and never writes to disk.</summary>
-public interface IStructureRefactorer
+internal interface IStructureRefactorer
 {
     Task<EditPlan> RenameNamespaceAsync(
         string solutionId,

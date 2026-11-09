@@ -4,7 +4,7 @@ namespace Snail.MCP.Roslyn.Tools.Prompts;
 /// <remarks>Every byte here is sent once per tool that uses it, in every request the client makes: the solution
 /// id alone appeared twenty-nine times. What the whole family has in common — that a symbol is addressed by id,
 /// by name or by position — is said once in the server instructions instead of once per parameter.</remarks>
-public static class ParameterDescriptions
+internal static class ParameterDescriptions
 {
     public const string Solution = "From load_solution.";
 

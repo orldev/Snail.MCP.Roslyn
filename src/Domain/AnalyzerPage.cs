@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record AnalyzerPage(
+internal sealed record AnalyzerPage(
     IReadOnlyList<AnalyzerIssue> Items,
     IReadOnlyList<string> Analyzers,
     int Total,

@@ -7,7 +7,7 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 namespace Snail.MCP.Roslyn.Tools;
 
 [McpServerToolType]
-public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnostics, ISolutionSurveyor surveyor, IFileReader reader)
+internal sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnostics, ISolutionSurveyor surveyor, IFileReader reader)
 {
     [McpServerTool(Name = "load_solution", ReadOnly = false, Destructive = false, OpenWorld = true)]
     [Description(ToolDescriptions.LoadSolution)]

@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record SymbolDetails(
+internal sealed record SymbolDetails(
     string Id,
     string Name,
     string Kind,

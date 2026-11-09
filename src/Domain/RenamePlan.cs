@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record RenamePlan(
+internal sealed record RenamePlan(
     string SymbolId,
     string OldName,
     string NewName,

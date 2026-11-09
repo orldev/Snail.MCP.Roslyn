@@ -10,7 +10,7 @@ using Snail.Sdk.Mcp.Hosting.Answers;
 
 namespace Snail.MCP.Roslyn.Extensions;
 
-public static class McpServerExtensions
+internal static class McpServerExtensions
 {
     extension(IMcpServerBuilder builder)
     {

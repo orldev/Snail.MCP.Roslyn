@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public enum SymbolKindFilter
+internal enum SymbolKindFilter
 {
     Any,
     Type,

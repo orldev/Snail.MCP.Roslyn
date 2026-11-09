@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record ReferencePage(
+internal sealed record ReferencePage(
     string SymbolId,
     IReadOnlyList<SymbolReference> Items,
     int Total,

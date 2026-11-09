@@ -6,7 +6,7 @@ namespace Snail.MCP.Roslyn.Tools.Prompts;
 /// anyone searches, and these are read only when someone asks <c>find_tool</c>. A guard test keeps the keys the tools the
 /// server lists, and every tool among the keys.
 /// </remarks>
-public static class ToolMeanings
+internal static class ToolMeanings
 {
     /// <summary>Tasks as a caller of this server puts them, shown in the description of find_tool's <c>task</c>.</summary>
     public static readonly IReadOnlyList<string> Examples = ["does it compile", "rename a symbol safely", "who calls this method"];

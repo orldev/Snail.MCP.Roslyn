@@ -1,5 +1,5 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record SignatureChange(
+internal sealed record SignatureChange(
     IReadOnlyList<string>? Parameters,
     string? ReturnType);

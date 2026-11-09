@@ -1,5 +1,5 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record MarkupDirective(
+internal sealed record MarkupDirective(
     string Text,
     int Line);

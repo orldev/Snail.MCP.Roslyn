@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Application.Ports;
 
 /// <summary>Reports what the compiler says about the code as it stands on disk.</summary>
-public interface IDiagnosticReader
+internal interface IDiagnosticReader
 {
     Task<IssuePage> ReadAsync(
         string solutionId,

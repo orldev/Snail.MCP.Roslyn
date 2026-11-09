@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record FileView(
+internal sealed record FileView(
     string File,
     int TotalLines,
     int StartLine,

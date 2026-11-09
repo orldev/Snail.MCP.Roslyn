@@ -13,7 +13,7 @@ using Snail.Sdk.Mcp.Http;
 
 namespace Snail.MCP.Roslyn.Extensions;
 
-public static class ServiceCollectionExtensions
+internal static class ServiceCollectionExtensions
 {
     /// <summary>The variable that configures the folders this process serves, named to a session that has none.</summary>
     public const string RootsSetting = "SNAIL_MCP_ROSLYN_SESSION_ROOTS__0";

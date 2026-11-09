@@ -1,6 +1,6 @@
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record CodeFixPage(
+internal sealed record CodeFixPage(
     string DiagnosticId,
     string Message,
     IReadOnlyList<CodeFix> Fixes,

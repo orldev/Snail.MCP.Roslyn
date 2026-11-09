@@ -6,7 +6,7 @@ using Snail.MCP.Roslyn.Tools.Prompts;
 namespace Snail.MCP.Roslyn.Tools;
 
 [McpServerToolType]
-public sealed class ArchitectureTools(IContainerReader container, ICodeUsageAuditor auditor)
+internal sealed class ArchitectureTools(IContainerReader container, ICodeUsageAuditor auditor)
 {
     [McpServerTool(Name = "get_di_registrations", ReadOnly = true, OpenWorld = false)]
     [Description(ToolDescriptions.GetDiRegistrations)]

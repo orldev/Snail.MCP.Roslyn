@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Tools.Prompts;
 
 /// <summary>Tool text the model reads; a wire contract, edited with caution.</summary>
-public static class ToolDescriptions
+internal static class ToolDescriptions
 {
     public const string LoadSolution =
         "Load a C# solution or project and keep it compiled for later questions. "

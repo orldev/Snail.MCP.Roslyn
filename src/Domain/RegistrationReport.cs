@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Snail.MCP.Roslyn.Domain;
 
-public sealed record RegistrationReport(
+internal sealed record RegistrationReport(
     IReadOnlyList<Registration> Items,
     IReadOnlyList<SymbolMatch> Unregistered,
     int Total,

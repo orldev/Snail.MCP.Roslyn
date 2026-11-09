@@ -31,10 +31,11 @@ public sealed class SymbolLookupTests(AnalysisFixture fixture)
     public async Task DescribeAsync_PositionInsideDeclaration_ResolvesToThatSymbol()
     {
         var file = Path.Combine(RepositoryPaths.Source, "Domain", "IssueSeverity.cs");
-        var line = File.ReadAllLines(file).Index().First(entry => entry.Item.Contains("enum IssueSeverity")).Index + 1;
+        var (index, text) = File.ReadAllLines(file).Index().First(entry => entry.Item.Contains("enum IssueSeverity"));
+        var column = text.IndexOf(nameof(IssueSeverity), StringComparison.Ordinal) + 2;
 
         var details = await fixture.Symbols.DescribeAsync(
-            fixture.SolutionId, new SymbolQuery(null, null, file, line, 13), CancellationToken.None);
+            fixture.SolutionId, new SymbolQuery(null, null, file, index + 1, column), CancellationToken.None);
 
         Assert.NotNull(details);
         Assert.Equal(nameof(IssueSeverity), details.Name);

@@ -10,7 +10,7 @@ namespace Snail.MCP.Roslyn.Extensions;
 /// of a machine and its warm compilations are shared instead of rebuilt per step. As a program it belongs
 /// to the one caller that started it and reaches wherever that caller does.
 /// </remarks>
-public static class HostingExtensions
+internal static class HostingExtensions
 {
     extension(IHostApplicationBuilder builder)
     {

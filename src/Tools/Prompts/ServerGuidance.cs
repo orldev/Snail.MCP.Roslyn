@@ -1,7 +1,7 @@
 namespace Snail.MCP.Roslyn.Tools.Prompts;
 
 /// <summary>How to work with this server, delivered once at initialize; a wire contract, edited with caution.</summary>
-public static class ServerGuidance
+internal static class ServerGuidance
 {
     public const string Instructions =
         """
