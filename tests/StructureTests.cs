@@ -49,6 +49,28 @@ public sealed class StructureTests(AnalysisFixture fixture)
         Assert.Contains(plan.Edits, edit => edit.File.EndsWith("LineEdit.cs", StringComparison.Ordinal));
     }
 
+    /// <summary>
+    /// A changed middle segment is renamed where it stands. The plan renamed the last segment to the new middle one
+    /// instead: Snail.MCP.Vault.Configuration to Snail.MCP.Obsidian.Configuration came out Snail.MCP.Vault.Obsidian
+    /// (2026-10-17), as only a changed last segment was tested.
+    /// </summary>
+    [Fact]
+    public async Task RenameNamespaceAsync_MiddleSegment_RenamesThatSegmentAndNamesWhatMovesWithIt()
+    {
+        var plan = await fixture.Structure.RenameNamespaceAsync(
+            fixture.SolutionId,
+            "Snail.MCP.Roslyn.Adapters.Workspaces",
+            "Snail.MCP.Roslyn.Infrastructure.Workspaces",
+            false,
+            CancellationToken.None);
+
+        var written = plan.Edits.SelectMany(edit => edit.Lines).Select(line => line.After).ToList();
+
+        Assert.Contains(written, line => line.Contains("namespace Snail.MCP.Roslyn.Infrastructure.Workspaces;", StringComparison.Ordinal));
+        Assert.DoesNotContain(written, line => line.Contains("Adapters.Infrastructure", StringComparison.Ordinal));
+        Assert.Contains(plan.Notes, note => note.Contains("Snail.MCP.Roslyn.Adapters.Paths", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task ChangeSignatureAsync_InterfaceMethod_EditsDeclarationAndListsCallSitesAsConflicts()
     {

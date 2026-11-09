@@ -52,17 +52,19 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
         }
 
         var current = solution;
+        var movedAlong = new SortedSet<string>(StringComparer.Ordinal);
 
         for (var index = 0; index < oldParts.Length; index++)
         {
             if (string.Equals(oldParts[index], newParts[index], StringComparison.Ordinal))
                 continue;
 
-            var prefix = string.Join('.', newParts[..index].Concat(oldParts[index..]));
+            var segment = string.Join('.', newParts[..index].Append(oldParts[index]));
 
-            if (await FindAsync(current, prefix, cancellationToken) is not { } space)
+            if (await FindAsync(current, segment, cancellationToken) is not { } space)
                 continue;
 
+            movedAlong.UnionWith(await OutsideAsync(solution, string.Join('.', oldParts[..(index + 1)]), oldNamespace, cancellationToken));
             current = await Renamer.RenameSymbolAsync(current, space, new SymbolRenameOptions(), newParts[index], cancellationToken);
         }
 
@@ -72,6 +74,10 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             edits = Realign(solution, edits, oldNamespace, newNamespace);
 
         var unhandled = await _scanner.UnhandledAsync(solution, oldParts[^1], SolutionEdits.Touched(edits), cancellationToken);
+        var notes = Notes(unhandled.Count > 0, updateFolders);
+
+        if (movedAlong.Count > 0)
+            notes = [.. notes, SharedSegmentNote(movedAlong)];
 
         return new EditPlan(
             "rename_namespace",
@@ -81,8 +87,45 @@ internal sealed class RoslynStructure(IPathMap paths, SolutionCache cache) : ISt
             unhandled,
             await SolutionEdits.ConflictsAsync(solution, current, cancellationToken),
             [],
-            Notes(unhandled.Count > 0, updateFolders));
+            notes);
     }
+
+    /// <summary>The namespaces declared in source under <paramref name="ancestor"/> that lie outside <paramref name="target"/>, which renaming the ancestor's last segment moves too.</summary>
+    /// <remarks>
+    /// A namespace segment is one symbol for everything under it, so the compiler renames a middle segment for every
+    /// namespace that shares it: renaming Snail.MCP.Vault to Snail.MCP.Obsidian for Snail.MCP.Vault.Configuration moves
+    /// Snail.MCP.Vault.Tools as well. Each project holds its own part of the tree, so every C# project is read.
+    /// </remarks>
+    private static async Task<IReadOnlyList<string>> OutsideAsync(Solution solution, string ancestor, string target, CancellationToken cancellationToken)
+    {
+        var found = new SortedSet<string>(StringComparer.Ordinal);
+
+        foreach (var project in solution.Projects.Where(project => project.Language == LanguageNames.CSharp))
+        {
+            var compilation = await project.GetCompilationAsync(cancellationToken);
+
+            if (compilation is null || Descend(compilation.Assembly.GlobalNamespace, ancestor.Split('.'), 0) is not { } space)
+                continue;
+
+            foreach (var name in Declared(space).Where(name => !IsWithinNamespace(name, target)))
+                found.Add(name);
+        }
+
+        return [.. found];
+    }
+
+    private static IEnumerable<string> Declared(INamespaceSymbol space)
+    {
+        if (space.GetTypeMembers().Any(type => type.Locations.Any(location => location.IsInSource)))
+            yield return space.ToDisplayString();
+
+        foreach (var name in space.GetNamespaceMembers().SelectMany(Declared))
+            yield return name;
+    }
+
+    private static string SharedSegmentNote(IEnumerable<string> movedAlong) =>
+        "A middle segment of a namespace is shared by every namespace under it, so the compiler renames it for all of them: "
+        + $"these move too — {string.Join(", ", movedAlong)}. Apply the plan only if that is wanted; otherwise move the types with move_type.";
 
     /// <summary>Plans moving a type into a file of its own, or into another file or namespace.</summary>
     /// <remarks>A file that holds nothing but the type makes the move a rename; only a changed namespace edits the
