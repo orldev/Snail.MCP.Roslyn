@@ -3,6 +3,13 @@
 # the actions in one pull request, the packages' minor and patch updates in another, each major update in its own.
 # Security updates do not wait for the schedule. The shared workflows are called by their major tag (@v1): Dependabot
 # proposes the next major when Snail.Sdk releases one.
+# Snail.Sdk and its levels come in one pull request of their own, a major update too: global.json names them apart,
+# but they are released together and build only at one version.
+# ModelContextProtocol's packages come in one pull request too, a major update included: apart, the server pinned the new
+# ModelContextProtocol while ModelContextProtocol.AspNetCore still asked for the old one, and restore refused it (NU1608).
+# Roslyn's packages and MSBuild's are held together for the same reason: Microsoft.CodeAnalysis.CSharp.Features asks for
+# exactly its own version of Microsoft.CodeAnalysis.CSharp, and MSBuild's assemblies are one release loaded side by side.
+# NetAnalyzers ships with the .NET SDK on a numbering of its own and stays among the packages.
 
 version: 2
 updates:
@@ -23,6 +30,12 @@ updates:
     groups:
       snail-sdk:
         patterns: ['Snail.Sdk*']
+      model-context-protocol:
+        patterns: ['ModelContextProtocol*']
+      roslyn:
+        patterns: ['Microsoft.CodeAnalysis.CSharp*', 'Microsoft.CodeAnalysis.Workspaces*']
+      msbuild:
+        patterns: ['Microsoft.Build', 'Microsoft.Build.Framework', 'Microsoft.Build.Utilities.Core', 'Microsoft.NET.StringTools']
       packages:
         patterns: ['*']
         update-types: [minor, patch]

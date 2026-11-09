@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Snail.MCP.Roslyn.Extensions;
+using Snail.Sdk.Mcp.Hosting.Sessions;
 
 namespace Snail.MCP.Roslyn.Tests;
 
@@ -61,7 +62,7 @@ public sealed class AddressTests : IAsyncLifetime
 
             Assert.True(answer.IsError, answer.Text());
             Assert.Contains($"'{solution}' is outside this request's root {_copy}, which its address names", answer.Error(), StringComparison.Ordinal);
-            Assert.Equal("outside", answer.Type());
+            Assert.Equal(Reached.Outside, answer.Type());
         }
         finally
         {

@@ -2,9 +2,11 @@ namespace Snail.MCP.Roslyn.Adapters.Workspaces;
 
 /// <summary>The kinds of the refusals this server answers for a caller's mistake, the <c>type</c> of the failure envelope.</summary>
 /// <remarks>
-/// Words a program can branch on, beside the kinds Snail.Sdk's session roots refuse a path with (<c>outside</c>,
-/// <c>noRoot</c>) and its own <c>arguments</c> and <c>notGranted</c>. Anything not named here that a tool throws is the
-/// server's own failure, <c>internal</c>, logged with its trace.
+/// Words a program can branch on, beside the kinds Snail.Sdk's session roots refuse a path with
+/// (<see cref="Snail.Sdk.Mcp.Hosting.Sessions.Reached.Outside"/>, <see cref="Snail.Sdk.Mcp.Hosting.Sessions.Reached.NoRoot"/>)
+/// and its own <see cref="Snail.Sdk.Mcp.Hosting.ToolFailures.Arguments"/> and
+/// <see cref="Snail.Sdk.Mcp.Hosting.Sessions.GrantOptions.NotGranted"/>. Anything not named here that a tool throws is the
+/// server's own failure, <see cref="Snail.Sdk.Mcp.Hosting.ToolFailures.Internal"/>, logged with its trace.
 /// </remarks>
 internal static class RefusalTypes
 {
