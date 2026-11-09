@@ -15,7 +15,7 @@ public sealed class WarmCacheTests : IDisposable
         </Project>
         """;
 
-    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-warm").FullName;
+    private readonly string _folder = TestFolder.Create();
 
     [Fact]
     public async Task LoadAsync_SolutionAlreadyLoaded_IsReusedRatherThanOpenedAgain()

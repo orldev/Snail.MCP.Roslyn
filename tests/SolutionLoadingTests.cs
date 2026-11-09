@@ -37,7 +37,7 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
     [Fact]
     public async Task LoadAsync_SolutionMSBuildCannotOpen_IsRefusedKeepingTheFailure()
     {
-        var folder = Directory.CreateTempSubdirectory("roslyn-unopened").FullName;
+        var folder = TestFolder.Create();
 
         try
         {
@@ -61,7 +61,7 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
     [Fact]
     public async Task Unload_LoadedSolution_ReleasesItAndRejectsLaterQuestions()
     {
-        var folder = Directory.CreateTempSubdirectory("roslyn-unload").FullName;
+        var folder = TestFolder.Create();
 
         try
         {

@@ -9,6 +9,9 @@ namespace Snail.MCP.Roslyn.Tests.Support;
 /// <summary>Hosts the analysis ports in process and loads this repository once for the whole suite.</summary>
 public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
 {
+    /// <summary>Test classes build their fixtures in parallel, and MSBuild is registered once per process.</summary>
+    private static readonly Lock MsBuildRegistration = new();
+
     private readonly ServiceProvider _provider;
 
     public AnalysisFixture()
@@ -20,8 +23,11 @@ public sealed class AnalysisFixture : IAsyncLifetime, IDisposable
     /// fixture may declare one public constructor only, and that one is the suite's.</summary>
     internal AnalysisFixture(IEnumerable<KeyValuePair<string, string?>> settings, ISessionAddress? address = null)
     {
-        if (!MSBuildLocator.IsRegistered)
-            MSBuildLocator.RegisterDefaults();
+        lock (MsBuildRegistration)
+        {
+            if (!MSBuildLocator.IsRegistered)
+                MSBuildLocator.RegisterDefaults();
+        }
 
         ServiceCollection services = [];
         services.AddLogging();

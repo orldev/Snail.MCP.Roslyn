@@ -12,7 +12,7 @@ public sealed class WorkspaceSettingsTests
     [Fact]
     public void Read_ASettingsFile_ReachesTheOptions()
     {
-        var folder = Directory.CreateTempSubdirectory("snail-mcp-roslyn-settings");
+        var folder = new DirectoryInfo(TestFolder.Create());
 
         try
         {
@@ -34,7 +34,7 @@ public sealed class WorkspaceSettingsTests
     [Fact]
     public void Read_AVariableAndTheSettingsFile_TheVariableWins()
     {
-        var folder = Directory.CreateTempSubdirectory("snail-mcp-roslyn-settings");
+        var folder = new DirectoryInfo(TestFolder.Create());
 
         try
         {

@@ -1,7 +1,6 @@
 using System.Net;
 using System.Text.Json.Nodes;
 using Snail.MCP.Roslyn.Extensions;
-using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Roslyn.Tests;
 
@@ -38,7 +37,7 @@ public sealed class AddressTests : IAsyncLifetime
     [Fact]
     public async Task A_session_opened_at_a_root_this_machine_does_not_have_is_refused_and_told_which()
     {
-        var elsewhere = Path.Combine(Path.GetTempPath(), $"snail-mcp-roslyn-{Guid.NewGuid():n}");
+        var elsewhere = Path.Combine(TestFolder.Create(), "not-on-this-machine");
 
         var (status, said) = await OpenAsync(_server, $"root={Uri.EscapeDataString(elsewhere)}");
 

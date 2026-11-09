@@ -24,7 +24,7 @@ public sealed class AnalyzerPolicyTests : IDisposable
         }
         """;
 
-    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-policy").FullName;
+    private readonly string _folder = TestFolder.Create();
 
     [Fact]
     public async Task RunAsync_StrictPolicy_RunsTheAnalyzersTheSdkShipsWithTheProject()

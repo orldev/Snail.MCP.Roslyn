@@ -48,7 +48,7 @@ public sealed class OverviewTests(AnalysisFixture fixture)
     [Fact]
     public async Task CheckAsync_NamespaceNotMatchingItsFolder_ReportsItAtItsLine()
     {
-        var folder = Directory.CreateTempSubdirectory("roslyn-overview").FullName;
+        var folder = TestFolder.Create();
 
         try
         {

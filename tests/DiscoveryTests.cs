@@ -1,6 +1,5 @@
 using ModelContextProtocol.Client;
 using Snail.MCP.Roslyn.Tools.Prompts;
-using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Roslyn.Tests;
 

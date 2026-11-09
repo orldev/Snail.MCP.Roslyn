@@ -36,7 +36,7 @@ public sealed class MemoryAdviceTests : IDisposable
         </Project>
         """;
 
-    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-memory").FullName;
+    private readonly string _folder = TestFolder.Create();
 
     [Fact]
     public async Task HealthAsync_WorkingSetPastTheCeiling_SaysARestartIsWhatRecoversIt()

@@ -1,6 +1,5 @@
 using Snail.MCP.Roslyn.Extensions;
 using Snail.Sdk.Mcp.Hosting.Sessions;
-using Snail.Sdk.Mcp.Testing;
 
 namespace Snail.MCP.Roslyn.Tests;
 
@@ -55,8 +54,8 @@ public sealed class SessionReachTests
     [Fact]
     public void A_symlink_that_leads_out_of_the_root_does_not_pass_as_a_path_inside_it()
     {
-        var one = Directory.CreateTempSubdirectory("roslyn-reach-one").FullName;
-        var two = Directory.CreateTempSubdirectory("roslyn-reach-two").FullName;
+        var one = TestFolder.Create();
+        var two = TestFolder.Create();
 
         try
         {
@@ -79,8 +78,8 @@ public sealed class SessionReachTests
     [Fact]
     public void A_symlink_in_the_middle_of_the_path_does_not_pass_as_a_path_inside_the_root()
     {
-        var one = Directory.CreateTempSubdirectory("roslyn-reach-mid-one").FullName;
-        var two = Directory.CreateTempSubdirectory("roslyn-reach-mid-two").FullName;
+        var one = TestFolder.Create();
+        var two = TestFolder.Create();
 
         try
         {

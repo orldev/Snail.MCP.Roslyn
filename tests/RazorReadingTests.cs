@@ -176,7 +176,7 @@ public sealed class RazorReadingTests : IAsyncLifetime, IDisposable
         }
         """;
 
-    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-razor").FullName;
+    private readonly string _folder = TestFolder.Create();
 
     private readonly AnalysisFixture _fixture = new();
 

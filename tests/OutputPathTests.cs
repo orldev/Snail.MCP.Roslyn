@@ -23,7 +23,7 @@ public sealed class OutputPathTests : IDisposable
         }
         """;
 
-    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-output").FullName;
+    private readonly string _folder = TestFolder.Create();
 
     [Fact]
     public async Task ReadAsync_FileUnderAFolderNamedBinInsideTheSources_ReportsItsErrors()

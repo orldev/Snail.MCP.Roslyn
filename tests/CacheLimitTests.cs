@@ -14,9 +14,9 @@ public sealed class CacheLimitTests : IDisposable
         </Project>
         """;
 
-    private readonly string _first = Directory.CreateTempSubdirectory("roslyn-cache-first").FullName;
+    private readonly string _first = TestFolder.Create();
 
-    private readonly string _second = Directory.CreateTempSubdirectory("roslyn-cache-second").FullName;
+    private readonly string _second = TestFolder.Create();
 
     [Fact]
     public async Task FreshAsync_SolutionDroppedForTheCeiling_SaysSoInsteadOfClaimingItWasNeverLoaded()

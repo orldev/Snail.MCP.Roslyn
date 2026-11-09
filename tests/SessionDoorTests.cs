@@ -19,9 +19,9 @@ public sealed class SessionDoorTests : IDisposable
         </Project>
         """;
 
-    private readonly string _mine = Directory.CreateTempSubdirectory("roslyn-door-mine").FullName;
+    private readonly string _mine = TestFolder.Create();
 
-    private readonly string _theirs = Directory.CreateTempSubdirectory("roslyn-door-theirs").FullName;
+    private readonly string _theirs = TestFolder.Create();
 
     [Fact]
     public async Task LoadSolution_APathOutsideTheSession_IsRefusedAndSaysWhere()

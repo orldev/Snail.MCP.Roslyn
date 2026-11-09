@@ -38,7 +38,7 @@ public sealed class RestoreTests : IDisposable
         }
         """;
 
-    private readonly string _folder = Directory.CreateTempSubdirectory("roslyn-restore").FullName;
+    private readonly string _folder = TestFolder.Create();
 
     /// <summary>A deployment that restores packages by other means says so in a setting — and hears the former explanation.</summary>
     [Fact]
