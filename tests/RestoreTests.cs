@@ -73,5 +73,29 @@ public sealed class RestoreTests : IDisposable
         Assert.Equal(WorkspaceReadiness.Ready, report.Readiness);
     }
 
+    /// <summary>
+    /// A repository on the artifacts layout keeps project.assets.json under one folder of its own, named
+    /// after the project, rather than beside it. Measured 2026-10-15 on Snail.Toolkit.Web: sixteen
+    /// restored projects were all called unrestored, so the agent heard that symbols do not bind while
+    /// they did, and this server spent 687 ms restoring what needed nothing.
+    /// </summary>
+    [Fact]
+    public async Task LoadAsync_ProjectRestoredIntoTheArtifactsFolder_IsNotCalledUnrestored()
+    {
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Fresh.csproj"), WithPackage);
+        await File.WriteAllTextAsync(Path.Combine(_folder, "Widget.cs"), Source);
+
+        var assets = Path.Combine(_folder, "artifacts", "obj", "Fresh");
+
+        Directory.CreateDirectory(assets);
+        await File.WriteAllTextAsync(Path.Combine(assets, "project.assets.json"), "{}");
+
+        using var fixture = new AnalysisFixture([new KeyValuePair<string, string?>("RestoreOnLoad", "false")]);
+        var report = await fixture.Host.LoadAsync(_folder, CancellationToken.None);
+
+        Assert.DoesNotContain(report.Notes, note => note.Contains("restore has not run", StringComparison.Ordinal));
+        Assert.DoesNotContain(report.Notes, note => note.Contains("this server restored them", StringComparison.Ordinal));
+    }
+
     public void Dispose() => Directory.Delete(_folder, recursive: true);
 }
