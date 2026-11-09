@@ -85,7 +85,7 @@ public sealed class SolutionLoadingTests(AnalysisFixture fixture)
             Assert.Contains(unloaded.Notes, note => note.Contains("Load it again", StringComparison.Ordinal));
 
             var refused = await Assert.ThrowsAsync<ToolRefusalException>(() =>
-                fixture.Diagnostics.ReadAsync(report.Id, null, IssueSeverity.Warning, 5, false, CancellationToken.None));
+                fixture.Diagnostics.ReadAsync(report.Id, null, IssueSeverity.Warning, 5, false, false, CancellationToken.None));
 
             Assert.Equal(RefusalTypes.NotLoaded, refused.Type);
             Assert.Equal("Call load_solution first.", refused.Hint);

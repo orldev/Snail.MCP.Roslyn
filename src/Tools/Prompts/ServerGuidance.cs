@@ -27,7 +27,8 @@ public static class ServerGuidance
 
         After every edit: call get_diagnostics, not `dotnet build`. It answers in tens of milliseconds against the
         files as they are on disk, including files you added since loading. Reach for `dotnet build` only when
-        packages or project files changed.
+        packages or project files changed. Where warnings are errors, pass analyzers=true with the file as scope:
+        the project's analyzers fail such a build on code that compiles.
 
         Before writing a file where a broken build would cost you: call validate with the proposed contents.
         It compiles them in context without touching the disk.

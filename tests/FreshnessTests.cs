@@ -40,7 +40,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
     public async Task Diagnostics_GeneratedCodeExcluded_PointAtNoFileUnderObj()
     {
         var page = await fixture.Diagnostics.ReadAsync(
-            fixture.SolutionId, null, IssueSeverity.Info, 200, false, CancellationToken.None);
+            fixture.SolutionId, null, IssueSeverity.Info, 200, false, false, CancellationToken.None);
 
         Assert.All(page.Items, item => Assert.DoesNotContain($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", item.File ?? string.Empty));
     }
@@ -49,7 +49,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
     public async Task Diagnostics_LimitBelowTotal_ReportsTruncated()
     {
         var page = await fixture.Diagnostics.ReadAsync(
-            fixture.SolutionId, null, IssueSeverity.Info, 1, true, CancellationToken.None);
+            fixture.SolutionId, null, IssueSeverity.Info, 1, true, false, CancellationToken.None);
 
         Assert.Equal(page.Total > page.Items.Count, page.IsTruncated);
     }
@@ -57,7 +57,7 @@ public sealed class FreshnessTests(AnalysisFixture fixture)
     private async Task<int> Errors()
     {
         var page = await fixture.Diagnostics.ReadAsync(
-            fixture.SolutionId, null, IssueSeverity.Error, 200, false, CancellationToken.None);
+            fixture.SolutionId, null, IssueSeverity.Error, 200, false, false, CancellationToken.None);
 
         return page.Total;
     }

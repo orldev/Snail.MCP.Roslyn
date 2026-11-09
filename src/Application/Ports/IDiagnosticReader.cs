@@ -9,5 +9,6 @@ public interface IDiagnosticReader
         IssueSeverity minimum,
         int limit,
         bool includeGenerated,
+        bool analyzers,
         CancellationToken cancellationToken);
 }

@@ -169,6 +169,7 @@ internal sealed class RoslynFileReader(IPathMap paths, SolutionCache cache, IOpt
             IssueSeverity.Warning,
             Math.Clamp(IssueCap, 1, options.Value.MaxIssues),
             false,
+            null,
             cancellationToken);
 
     /// <summary>The component type and the @code declarations that map back into the authored file.</summary>

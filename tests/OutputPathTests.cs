@@ -38,7 +38,7 @@ public sealed class OutputPathTests : IDisposable
         var report = await fixture.Host.LoadAsync(_folder, CancellationToken.None);
 
         var page = await fixture.Diagnostics.ReadAsync(
-            report.Id, null, IssueSeverity.Error, 50, false, CancellationToken.None);
+            report.Id, null, IssueSeverity.Error, 50, false, false, CancellationToken.None);
 
         Assert.Contains(page.Items, issue => issue.File?.EndsWith("Item.cs", StringComparison.Ordinal) == true);
     }

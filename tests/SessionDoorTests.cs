@@ -55,7 +55,7 @@ public sealed class SessionDoorTests : IDisposable
         address.Root = _mine;
 
         var refused = await Assert.ThrowsAsync<ToolRefusalException>(() =>
-            fixture.Diagnostics.ReadAsync(loaded.Id, null, IssueSeverity.Error, 10, false, CancellationToken.None));
+            fixture.Diagnostics.ReadAsync(loaded.Id, null, IssueSeverity.Error, 10, false, false, CancellationToken.None));
 
         Assert.Contains("another session", refused.Error, StringComparison.Ordinal);
         Assert.Equal(Reached.Outside, refused.Type);

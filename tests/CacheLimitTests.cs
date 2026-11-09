@@ -30,7 +30,7 @@ public sealed class CacheLimitTests : IDisposable
         var kept = (await fixture.Host.LoadAsync(_second, CancellationToken.None)).Id;
 
         var failure = await Assert.ThrowsAsync<ToolRefusalException>(() =>
-            fixture.Diagnostics.ReadAsync(dropped, null, IssueSeverity.Error, 10, false, CancellationToken.None));
+            fixture.Diagnostics.ReadAsync(dropped, null, IssueSeverity.Error, 10, false, false, CancellationToken.None));
 
         Assert.Contains("dropped", failure.Error, StringComparison.Ordinal);
         Assert.Equal(RefusalTypes.NotLoaded, failure.Type);

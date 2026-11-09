@@ -14,6 +14,8 @@ public static class ToolDescriptions
     public const string GetDiagnostics =
         "List compiler errors and warnings for a loaded solution, reflecting the files as they are on disk right now. "
         + "Call it right after editing to see what the change broke; it is cheap enough to use after every edit. "
+        + "Where the build treats warnings as errors, its analyzers can fail it on code that compiles: pass analyzers=true "
+        + "with the file as scope to see them too, and the answer says when they were not run. "
         + "Identical diagnostics repeated across generated components are collapsed and counted in 'repeats'. "
         + "Truncation is always stated, so a short list is not the same as a complete one.";
 

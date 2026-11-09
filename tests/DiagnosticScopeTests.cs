@@ -44,7 +44,7 @@ public sealed class DiagnosticScopeTests(AnalysisFixture fixture)
                 file, MappedAway.Replace("PHANTOM", phantom, StringComparison.Ordinal), CancellationToken.None);
 
             var page = await fixture.Diagnostics.ReadAsync(
-                fixture.SolutionId, phantom, IssueSeverity.Error, 20, false, CancellationToken.None);
+                fixture.SolutionId, phantom, IssueSeverity.Error, 20, false, false, CancellationToken.None);
 
             var error = Assert.Single(page.Items);
 
@@ -60,7 +60,7 @@ public sealed class DiagnosticScopeTests(AnalysisFixture fixture)
     private async Task<IEnumerable<string>> Issues(string? scope)
     {
         var page = await fixture.Diagnostics.ReadAsync(
-            fixture.SolutionId, scope, IssueSeverity.Info, 200, true, CancellationToken.None);
+            fixture.SolutionId, scope, IssueSeverity.Info, 200, true, false, CancellationToken.None);
 
         Assert.False(page.IsTruncated, "A truncated page cannot be compared with another taken at a different scope.");
 

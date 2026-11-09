@@ -9,7 +9,7 @@ public sealed class ConcurrencyTests(AnalysisFixture fixture)
     public async Task Diagnostics_ManyConcurrentCallers_AgreeAndDoNotFault()
     {
         var calls = Enumerable.Range(0, Callers).Select(_ => fixture.Diagnostics.ReadAsync(
-            fixture.SolutionId, null, IssueSeverity.Warning, 200, false, CancellationToken.None));
+            fixture.SolutionId, null, IssueSeverity.Warning, 200, false, false, CancellationToken.None));
 
         var pages = await Task.WhenAll(calls);
 

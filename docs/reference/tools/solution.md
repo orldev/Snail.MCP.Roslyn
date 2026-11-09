@@ -37,7 +37,7 @@ Load a C# solution or project and keep it compiled for later questions. Returns 
 
 ## <code>get_<wbr>diagnostics</code>
 
-List compiler errors and warnings for a loaded solution, reflecting the files as they are on disk right now. Call it right after editing to see what the change broke; it is cheap enough to use after every edit. Identical diagnostics repeated across generated components are collapsed and counted in 'repeats'. Truncation is always stated, so a short list is not the same as a complete one.
+List compiler errors and warnings for a loaded solution, reflecting the files as they are on disk right now. Call it right after editing to see what the change broke; it is cheap enough to use after every edit. Where the build treats warnings as errors, its analyzers can fail it on code that compiles: pass analyzers=true with the file as scope to see them too, and the answer says when they were not run. Identical diagnostics repeated across generated components are collapsed and counted in 'repeats'. Truncation is always stated, so a short list is not the same as a complete one.
 
 *read-only · every call adds · stays on this machine.*
 
@@ -48,6 +48,7 @@ List compiler errors and warnings for a loaded solution, reflecting the files as
 | `minimum` | `Info` \| `Warning` \| `Error` | — | `Warning` | Lowest severity to include: Info, Warning or Error. |
 | `limit` | `integer` | — | `50` | Maximum issues to return. |
 | `includeGenerated` | `boolean` | — | `false` | Include diagnostics that only exist in generated code the caller cannot edit. |
+| `analyzers` | `boolean` | — | `false` | Also run the analyzers the project's own build runs, at the severity it gives them. Costs more than the compiler alone: narrow scope to the file you changed. |
 
 <details><summary>JSON Schema</summary>
 
@@ -84,6 +85,11 @@ List compiler errors and warnings for a loaded solution, reflecting the files as
     },
     "includeGenerated": {
       "description": "Include diagnostics that only exist in generated code the caller cannot edit.",
+      "type": "boolean",
+      "default": false
+    },
+    "analyzers": {
+      "description": "Also run the analyzers the project\u0027s own build runs, at the severity it gives them. Costs more than the compiler alone: narrow scope to the file you changed.",
       "type": "boolean",
       "default": false
     }

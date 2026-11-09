@@ -34,8 +34,10 @@ public sealed class SolutionTools(ISolutionHost host, IDiagnosticReader diagnost
         [Description("Maximum issues to return.")]
         int limit = 50,
         [Description("Include diagnostics that only exist in generated code the caller cannot edit.")]
-        bool includeGenerated = false) =>
-        diagnostics.ReadAsync(solutionId, scope, minimum, limit, includeGenerated, cancellationToken)
+        bool includeGenerated = false,
+        [Description("Also run the analyzers the project's own build runs, at the severity it gives them. Costs more than the compiler alone: narrow scope to the file you changed.")]
+        bool analyzers = false) =>
+        diagnostics.ReadAsync(solutionId, scope, minimum, limit, includeGenerated, analyzers, cancellationToken)
             .AnsweredAsync(RoslynJson.Default.IssuePage);
 
     [McpServerTool(Name = "read_file", ReadOnly = true, OpenWorld = false)]

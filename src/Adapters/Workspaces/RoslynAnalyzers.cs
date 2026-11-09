@@ -20,11 +20,6 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
         "This project references no analyzers of its own, so the ones shipped with this server were used. "
         + "Their findings are suggestions from a general rule set, not the project's own standard.";
 
-    private const string BlockedNote =
-        "Some analyzer assemblies were not run: they live outside the package cache, the .NET installation and "
-        + "the solution, "
-        + "and an analyzer is arbitrary code executed in this process. Set SNAIL_MCP_ROSLYN_ANALYZER_POLICY to 'all' to run them anyway.";
-
     private const string FixNote =
         "Fixes are proposals from the compiler's own providers, returned as edits. This tool never writes to disk. "
         + "A fix that compiles is not automatically a fix that is right.";
@@ -110,7 +105,7 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
             notes.Add(ShippedNote);
 
         if (blocked)
-            notes.Add(BlockedNote);
+            notes.Add(ProjectAnalyzers.BlockedNote);
 
         return new AnalyzerPage(
             items,
@@ -217,23 +212,12 @@ internal sealed class RoslynAnalyzers(IPathMap paths, SolutionCache cache, IOpti
 
     private static ImmutableArray<DiagnosticAnalyzer> Select(Project project, string policy, ref bool shipped, ref bool blocked)
     {
-        var root = project.FilePath is { } file ? Path.GetDirectoryName(file) : null;
-        List<DiagnosticAnalyzer> own = [];
+        var own = ProjectAnalyzers.Own(project, policy, out var refused);
 
-        foreach (var reference in project.AnalyzerReferences)
-        {
-            if (!AnalyzerGuard.Allows(policy, reference.FullPath, root))
-            {
-                blocked = true;
+        blocked |= refused;
 
-                continue;
-            }
-
-            own.AddRange(reference.GetAnalyzers(LanguageNames.CSharp));
-        }
-
-        if (own.Count > 0)
-            return [.. own];
+        if (own.Length > 0)
+            return own;
 
         shipped = true;
 
